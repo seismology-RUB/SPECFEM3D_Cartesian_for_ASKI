@@ -1,0 +1,88 @@
+####################################################
+THIS IS A VERY SHORT DOCUMENTATION ON HOW TO GET
+STARTED WITH
+
+  SPECFEM3D_Cartesian_2.1.x  for  ASKI - version 0.3
+
+####################################################
+
+SPECFEM3D for ASKI, as well as ASKI and some of its components, documentation 
+and examples are available via http://www.rub.de/ASKI
+Please also refer to this address in case you want to get in touch with the
+authors, who are very eager on any feedback, especially about problems you may 
+encounter installing or using the software.
+
+The authors are Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+and Wolfgang Friederich (Ruhr-Universitaet Bochum, Germany), 2013.
+
+SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are free software: 
+you can redistribute it and/or modify it under the terms of the GNU 
+General Public License as published by the Free Software Foundation, 
+either version 2 of the License, or (at your option) any later version.
+SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are distributed in 
+the hope that they will be useful, but WITHOUT ANY WARRANTY; without 
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3.
+If not, see <http://www.gnu.org/licenses/>.
+
+
+##########
+REQUIREMENTS
+##########
+Running installation of the SPECFEM3D_Cartesian code with certain capabilities, as described in 
+file README of modified SPECFEM3D version SPECFEM3D_Cartesian_svn_2013-06-09_for_ASKI, available
+via http://www.rub.de/ASKI, which already includes modifications for ASKI. 
+
+
+##########
+INSTALLATION
+##########
+You can either download and use the modified SPECFEM3D version SPECFEM3D_Cartesian_svn_2013-06-09_for_ASKI, 
+available via http://www.rub.de/ASKI
+Additionally, you may refer to the manual SPECFEM3D_Cartesian_for_ASKI_manual.pdf for any further details 
+on dependencies, requrements and installation.
+
+If you have a standard SPECFEM3D_Cartesian installation which has the required functionality 
+(e.g. from SPECFEM3D_Cartesian release version 2.1), you may modify your installation for usage
+with ASKI in the following way (tested for SPECFEM3D_Cartesian svn revision 21822 by 9 June 2013):
+
+1) install SPECFEM3D Cartesian on your system and make it running, gain some experience
+   (below, the installation path is refered to as "SPECFEM3D")
+
+2) copy file ./specfem3D_for_ASKI.f90 to SPECFEM3D/src/specfem3D/
+
+3) replace file SPECFEM3D/src/generate_databases/model_external_values.f90 by ./model_external_values.f90
+
+4) copy file ./Par_file_ASKI to your respective IN_DATA_FILES_PATH (e.g. SPECFEM3D/examples/my_example/DATA/ , or SPECFEM3D/DATA/ )
+
+5) append content of file ./parallel_ASKI.f90 to file SPECFEM3D/src/shared/parallel.f90
+
+6) append content of file ./specfem3D_par_ASKI.f90 to file SPECFEM3D/src/specfem3D/specfem3D_par.f90
+
+7) in SPECFEM3D/src/specfem3D/Makefile : add the following line into the definition of SOLVER_ARRAY_OBJECTS (e.g. before line with "$(EMPTY_MACRO)")
+	$O/specfem3D_for_ASKI.o \
+   (be aware that the above line MUST start with a real TAB character! in order to meet GNU-make syntax rules)
+
+8) in SPECFEM3D/src/specfem3D/prepare_timerun.F90 in subroutine prepare_timerun : add the following line before timing statistics at the end
+    call prepare_timerun_ASKI()
+
+9) in SPECFEM3D/src/specfem3D/iterate_time.F90 in subroutine iterate_time : add the following line just before the "enddo" of the time loop
+    call write_ASKI_output()
+
+Now you still need to compile two binaries by the following two operations. It is assumed that ./ is contained in your ASKI_0.3/
+installation directory, i.e. ./../ is ASKI_0.3/
+
+10) make clean
+
+11) make all
+
+After that, ./bin should contain the two binaries (at best)
+
+
+##########
+USAGE, DOCUMENTATION
+##########
+read the documentation SPECFEM3D_Cartesian_for_ASKI_manual.pdf, avaliable via http://www.rub.de/ASKI
+for information on how to set parameters correctly and use SPECFEM3D for ASKI

@@ -1,0 +1,2 @@
+createSpecfem3dSyntheticData.o: errorMessage.o seismicNetwork.o iterationStepBasics.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o seismicEvent.o commandLine.o
+createSpecfem3dMeasuredData.o: errorMessage.o seismicNetwork.o iterationStepBasics.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o seismicEvent.o commandLine.o
