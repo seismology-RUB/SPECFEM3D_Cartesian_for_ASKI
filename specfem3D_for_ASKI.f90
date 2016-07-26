@@ -1,36 +1,40 @@
 !----------------------------------------------------------------------------
-!   Copyright 2013 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !
-!   This file is part of SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3.
+!   This file is part of SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
 !
-!   SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are free software: 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are free software: 
 !   you can redistribute it and/or modify it under the terms of the GNU 
 !   General Public License as published by the Free Software Foundation, 
 !   either version 2 of the License, or (at your option) any later version.
 !
-!   SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are distributed in 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are distributed in 
 !   the hope that they will be useful, but WITHOUT ANY WARRANTY; without 
 !   even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
 !   PURPOSE.  See the GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3.
+!   along with SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
 !   If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 subroutine prepare_timerun_ASKI()
 
-  use specfem_par,only: CUSTOM_REAL,SIZE_REAL,NPROC,myrank
+  use constants,only: IN_DATA_FILES
+  use specfem_par,only: CUSTOM_REAL,SIZE_REAL,PRINT_SOURCE_TIME_FUNCTION,NPROC,myrank
   use specfem_par_ASKI
 
   implicit none
 
   integer :: iproc
 
-  if (CUSTOM_REAL /= SIZE_REAL) call exit_MPI_without_rank('only single precision supported for ASKI output')
-
   call read_Par_file_ASKI()
 
   if (.not.COMPUTE_ASKI_OUTPUT) return
+
+  if (CUSTOM_REAL /= SIZE_REAL) call exit_MPI_without_rank('only single precision supported for ASKI output')
+
+  if (ASKI_DECONVOLVE_STF.and.(.not.PRINT_SOURCE_TIME_FUNCTION)) call exit_MPI_without_rank('PRINT_SOURCE_TIME_FUNCTION '//&
+       'must be set to .true. in Par_file in case of ASKI_DECONVOLVE_STF = .true.')
 
   ! depending on type of inversion grid, collect information on GLL points
   ! where ASKI output should be produced (like number of points, their indices, 
@@ -45,13 +49,13 @@ subroutine prepare_timerun_ASKI()
   case default
      call exit_MPI_without_rank('values for ASKI_type_inversion_grid other than 2,3,4 not supported yet')
   end select ! ASKI_type_inversion_grid
-  call sync_all()
 
   ! in the routines search_ASKI_wavefield_points*, the following variables are defined:
   !   ASKI_np_local (number of ASKI wavefield points for this proc)
   !   ASKI_indx_local
 
   ! gather ASKI_np_local from everybody on proc 0
+  call synchronize_all()
   if(myrank == 0) then
      allocate(ASKI_np_local_all(NPROC))
      ASKI_np_local_all(1) = ASKI_np_local ! this is me, rank 0
@@ -78,6 +82,17 @@ subroutine prepare_timerun_ASKI()
   ! and frequency info to file
   call write_ASKI_main_file()
 
+  if(ASKI_MAIN_FILE_ONLY) then
+     ! wait until the main parfile has been written
+     call synchronize_all()
+     ! abort this run
+     call exit_MPI_without_rank("logical parameter 'ASKI_MAIN_FILE_ONLY' in "//trim(IN_DATA_FILES)//&
+          "Par_file_ASKI requests to only "//&
+          "write the main ASKI output file, hence aborting this run")
+  end if
+
+  call synchronize_all()
+
 end subroutine prepare_timerun_ASKI
 !
 ! ----------------------------------------------------------------------------------------------------------
@@ -85,7 +100,7 @@ end subroutine prepare_timerun_ASKI
 subroutine read_Par_file_ASKI()
 
   use specfem_par,only: myrank
-  use constants,only: IN_DATA_FILES_PATH,IMAIN
+  use constants,only: IN_DATA_FILES,IMAIN
   use specfem_par_ASKI
 
   implicit none
@@ -98,12 +113,12 @@ subroutine read_Par_file_ASKI()
 
   ! open Par_file_ASKI and find number of valid lines
   call get_file_unit_ASKI(IOASKI)
-  open(unit=IOASKI,file=trim(IN_DATA_FILES_PATH)//'Par_file_ASKI',&
+  open(unit=IOASKI,file=trim(IN_DATA_FILES)//'Par_file_ASKI',&
        form='formatted',status='old',action='read',iostat=ios)
   if(ios/=0) then
      close(IOASKI)
      COMPUTE_ASKI_OUTPUT = .false.
-     if(myrank==0) call write_ASKI_log('LOG_ASKI_start.txt',"could not open file '"//trim(IN_DATA_FILES_PATH)//&
+     if(myrank==0) call write_ASKI_log('LOG_ASKI_start.txt',"could not open file '"//trim(IN_DATA_FILES)//&
           "Par_file_ASKI', so no ASKI output is produced")
      return
   end if
@@ -121,12 +136,12 @@ subroutine read_Par_file_ASKI()
   end do
   close(IOASKI)
 
-  if(npar == 0) call exit_MPI_without_rank("no valid lines in file '"//trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+  if(npar == 0) call exit_MPI_without_rank("no valid lines in file '"//trim(IN_DATA_FILES)//"Par_file_ASKI'")
   allocate(key_parfile(npar),val_parfile(npar))
 
   ! now open again and store key,val pairs of valid lines
   call get_file_unit_ASKI(IOASKI)
-  open(unit=IOASKI,file=trim(IN_DATA_FILES_PATH)//'Par_file_ASKI',&
+  open(unit=IOASKI,file=trim(IN_DATA_FILES)//'Par_file_ASKI',&
        form='formatted',status='old',action='read',iostat=ios)
   npar = 0
   do while(ios==0)
@@ -151,24 +166,30 @@ subroutine read_Par_file_ASKI()
   call get_value_Par_file_ASKI('COMPUTE_ASKI_OUTPUT',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) COMPUTE_ASKI_OUTPUT
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'COMPUTE_ASKI_OUTPUT' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   if(.not.COMPUTE_ASKI_OUTPUT) then
      if(myrank == 0) then
-        call write_ASKI_log('LOG_ASKI_start.txt',"in '"//trim(IN_DATA_FILES_PATH)//&
+        call write_ASKI_log('LOG_ASKI_start.txt',"in '"//trim(IN_DATA_FILES)//&
              "Par_file_ASKI': COMPUTE_ASKI_OUTPUT is .false., so no ASKI output is produced")
-        write(IMAIN,*) "in '"//trim(IN_DATA_FILES_PATH)//&
+        write(IMAIN,*) "in '"//trim(IN_DATA_FILES)//&
              "Par_file_ASKI': COMPUTE_ASKI_OUTPUT is .false., so no ASKI output is produced"
      end if
      deallocate(key_parfile,val_parfile)
      return
   end if
 
+  ! ASKI_MAIN_FILE_ONLY
+  call get_value_Par_file_ASKI('ASKI_MAIN_FILE_ONLY',val,key_parfile,val_parfile,npar)
+  read(val,*,iostat=ios) ASKI_MAIN_FILE_ONLY
+  if(ios/=0) call exit_MPI_without_rank("invalid value for logical parameter 'ASKI_MAIN_FILE_ONLY' in '"&
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
+
   ! OVERWRITE_ASKI_OUTPUT
   call get_value_Par_file_ASKI('OVERWRITE_ASKI_OUTPUT',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) OVERWRITE_ASKI_OUTPUT
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'OVERWRITE_ASKI_OUTPUT' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_outfile
   call get_value_Par_file_ASKI('ASKI_outfile',ASKI_outfile,key_parfile,val_parfile,npar)
@@ -177,109 +198,115 @@ subroutine read_Par_file_ASKI()
   call get_value_Par_file_ASKI('ASKI_output_ID',val,key_parfile,val_parfile,npar)
   ASKI_output_ID = val(1:length_ASKI_output_ID)
 
+  ! ASKI_DECONVOLVE_STF
+  call get_value_Par_file_ASKI('ASKI_DECONVOLVE_STF',val,key_parfile,val_parfile,npar)
+  read(val,*,iostat=ios) ASKI_DECONVOLVE_STF
+  if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_DECONVOLVE_STF' in '"&
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
+
   ! ASKI_df
   call get_value_Par_file_ASKI('ASKI_df',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_df
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_df' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
   if(ASKI_df<0.d0) call exit_MPI_without_rank("value for 'ASKI_df' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI' must be positive")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI' must be positive")
 
   ! ASKI_nf
   call get_value_Par_file_ASKI('ASKI_nf',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_nf
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_nf' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
   if(ASKI_nf<1) call exit_MPI_without_rank("value for 'ASKI_nf' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI' must be positive")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI' must be positive")
 
   allocate(ASKI_jf(ASKI_nf))
   ! ASKI_jf
   call get_value_Par_file_ASKI('ASKI_jf',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_jf
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_jf' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_DFT_double
   call get_value_Par_file_ASKI('ASKI_DFT_double',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_DFT_double
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_DFT_double' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_DFT_apply_taper
   call get_value_Par_file_ASKI('ASKI_DFT_apply_taper',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_DFT_apply_taper
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_DFT_apply_taper' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_DFT_taper_percentage
   call get_value_Par_file_ASKI('ASKI_DFT_taper_percentage',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_DFT_taper_percentage
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_DFT_taper_percentage' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
   if(ASKI_DFT_taper_percentage<0.d0 .or. ASKI_DFT_taper_percentage>1.d0) &
        call exit_MPI_without_rank("value for 'ASKI_DFT_taper_percentage' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI' must be between 0.0 and 1.0")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI' must be between 0.0 and 1.0")
 
   ! ASKI_type_inversion_grid
   call get_value_Par_file_ASKI('ASKI_type_inversion_grid',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_type_inversion_grid
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_type_inversion_grid' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_wx
   call get_value_Par_file_ASKI('ASKI_wx',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_wx
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_wx' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_wy
   call get_value_Par_file_ASKI('ASKI_wy',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_wy
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_wy' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_wz
   call get_value_Par_file_ASKI('ASKI_wz',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_wz
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_wz' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_rot_X
   call get_value_Par_file_ASKI('ASKI_rot_X',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_rot_X
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_rot_X' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_rot_Y
   call get_value_Par_file_ASKI('ASKI_rot_Y',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_rot_Y
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_rot_Y' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_rot_Z
   call get_value_Par_file_ASKI('ASKI_rot_Z',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_rot_Z
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_rot_Z' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_cx
   call get_value_Par_file_ASKI('ASKI_cx',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_cx
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_cx' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_cy
   call get_value_Par_file_ASKI('ASKI_cy',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_cy
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_cy' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
   ! ASKI_cz
   call get_value_Par_file_ASKI('ASKI_cz',val,key_parfile,val_parfile,npar)
   read(val,*,iostat=ios) ASKI_cz
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_cz' in '"&
-       //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+       //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 
 
 !!IOASKI  COMPUTE_ASKI_OUTPUT = .true.
@@ -304,7 +331,7 @@ end subroutine read_Par_file_ASKI
 ! ----------------------------------------------------------------------------------------------------------
 !
 subroutine get_value_Par_file_ASKI(key,val,key_parfile,val_parfile,npar)
-  use constants,only: IN_DATA_FILES_PATH
+  use constants,only: IN_DATA_FILES
   character(len=*), intent(in) :: key
   integer, intent(in) :: npar
   character(len=*), dimension(npar), intent(in) :: key_parfile,val_parfile
@@ -320,7 +347,7 @@ subroutine get_value_Par_file_ASKI(key,val,key_parfile,val_parfile,npar)
      end if
   end do ! ipar
   if(.not.found) call exit_MPI_without_rank("definition of parameter '"//trim(key)//"' not found in '"&
-          //trim(IN_DATA_FILES_PATH)//"Par_file_ASKI'")
+          //trim(IN_DATA_FILES)//"Par_file_ASKI'")
 end subroutine get_value_Par_file_ASKI
 !
 ! ----------------------------------------------------------------------------------------------------------
@@ -555,13 +582,14 @@ subroutine search_ASKI_wavefield_points_type_invgrid_4()
      ASKI_np_local = 0
   end if ! nspec_in_ASKI_volume > 0
 
+  if(allocated(ispec_in_ASKI_volume)) deallocate(ispec_in_ASKI_volume)
 end subroutine search_ASKI_wavefield_points_type_invgrid_4
 !
 ! ----------------------------------------------------------------------------------------------------------
 !
 subroutine prepare_ASKI_output()
 
-  use specfem_par,only: DT,NSTEP,PI,TWO_PI,myrank
+  use specfem_par,only: DT,NSTEP,PI,TWO_PI,myrank,USE_RICKER_TIME_FUNCTION,USE_FORCE_POINT_SOURCE
   use specfem_par_ASKI
 
   implicit none
@@ -571,6 +599,26 @@ subroutine prepare_ASKI_output()
   logical :: file_exists
   character(len=509) :: filename
 
+  if(ASKI_DECONVOLVE_STF .and. USE_RICKER_TIME_FUNCTION) call exit_MPI_without_rank("ASKI_DECONVOLVE_STF = .true. "//&
+       "is only supported for case USE_RICKER_TIME_FUNCTION = .false.")
+
+  if(.not.ASKI_DECONVOLVE_STF) then
+     ! always store displacement in this case (and not velocity)
+     ASKI_store_veloc = .false.
+  else
+     ! if the stf should be deconvolved, we must distinguish between point source and moment tensor source
+     ! (since in the SPECFEM3D_Cartesian release by June 2015 either a Gaussian or an error function are used, 
+     !  dependent on the type of source mechanism)
+     if(USE_FORCE_POINT_SOURCE) then
+        ! a thin gaussian is used, so store displacement and deconvolve the source time function directly
+        ASKI_store_veloc = .false.
+     else
+        ! a steep error function is used (integral of thin gaussian), so store velocity and deconvolve the
+        ! differentiated source time function (i.e. gaussian). this is done for reasons of numerical stability, 
+        ! deconvolving a spectrum which is nearly constant 1.0 )
+        ASKI_store_veloc = .true.
+     end if
+  end if
 
   if(myrank == 0) then
 
@@ -610,8 +658,10 @@ subroutine prepare_ASKI_output()
   if(ASKI_nf < 1) call exit_MPI_without_rank('ASKI_nf in Par_file_ASKI must be a strictly positive number')
   if(size(ASKI_jf) /= ASKI_nf) call exit_MPI_without_rank('size(ASKI_jf) must equal ASKI_nf in Par_file_ASKI')
 
-  ! the following parameters and variables are only used for procs which compute any ASKI output at local wavefield points
-  if (ASKI_np_local .gt. 0) then
+  ! the variable ASKI_efactors_tapered is only used by procs which compute any ASKI output at local wavefield points 
+  ! ADDITIONALLY it is used by rank 0 below in deconvolve_stf_from_ASKI_output even if it does 
+  ! not have local wavefield points
+  if (ASKI_np_local .gt. 0 .or. myrank == 0) then
 
      ! if you plan on doing an inverse fourier transform afterwards, ASKI_df should be chosen 
      ! in a way, that ASKI_df = 1/(NSTEP-1)*DT (1/length_of_timeseries), 
@@ -648,7 +698,10 @@ subroutine prepare_ASKI_output()
            end do ! jt
         end if ! ntaper>0
      end if ! ASKI_DFT_apply_taper
+  end if ! ASKI_np_local .gt. 0 .or. myrank == 0
 
+  ! the following allocations are only needed for procs which compute any ASKI output at local wavefield points 
+  if (ASKI_np_local .gt. 0) then
      ! allocate for spectra, first rank: 3 underived components, plus 6 strains = 9
      if(ASKI_DFT_double) then
         allocate(ASKI_spectra_local_double(9,ASKI_nf,ASKI_np_local))
@@ -726,9 +779,8 @@ subroutine write_ASKI_main_file()
 
   end if ! ASKI_np_local > 0
 
-  call sync_all()
-
   ! gather wavefield points on proc 0
+  call synchronize_all()
   if(myrank == 0) then
      allocate(xyz(sum(ASKI_np_local_all),3))
      ip = 0
@@ -751,11 +803,10 @@ subroutine write_ASKI_main_file()
 
   end if ! myrank == 0
 
-  call sync_all()
-
   select case(ASKI_type_inversion_grid)
   case(4)
      ! gather jacobian on proc 0 and compute neighbours
+     call synchronize_all()
      if(myrank == 0) then
         allocate(jacob(sum(ASKI_np_local_all)))
         ip = 0
@@ -786,6 +837,7 @@ subroutine write_ASKI_main_file()
   end select ! ASKI_type_inversion_grid
 
   ! gather model on proc 0
+  call synchronize_all()
   if(myrank == 0) then
      allocate(model(sum(ASKI_np_local_all),3))
      ip = 0
@@ -809,8 +861,6 @@ subroutine write_ASKI_main_file()
 
   end if ! myrank == 0
 
-  call sync_all()
-
   if(myrank == 0) then
      ! do not worry about whether to overwrite or not, if program comes here, it already has been checked 
      ! if the value of OVERWRITE_ASKI_OUTPUT is in conflict with existing files
@@ -833,6 +883,9 @@ subroutine write_ASKI_main_file()
      write(IOASKI) xyz(:,1)
      write(IOASKI) xyz(:,2)
      write(IOASKI) xyz(:,3)
+     write(IOASKI) model(:,1)
+     write(IOASKI) model(:,2)
+     write(IOASKI) model(:,3)
      select case(ASKI_type_inversion_grid)
      case(4)
         write(IOASKI) NGLLX,NGLLY,NGLLZ
@@ -844,11 +897,8 @@ subroutine write_ASKI_main_file()
            if(nnb > 0) write(IOASKI) neighbours(2:1+nnb,ispec)
         end do
      end select
-     write(IOASKI) model(:,1)
-     write(IOASKI) model(:,2)
-     write(IOASKI) model(:,3)
      close(IOASKI)
-  end if
+  end if ! myrank == 0
 
   ! deallocate local stuff
   if(allocated(model)) deallocate(model)
@@ -991,10 +1041,10 @@ end subroutine find_ASKI_neighbours_type_invgrid_4
 subroutine write_ASKI_output()
 
   use constants,only: CUSTOM_REAL,NGLLX,NGLLY,NGLLZ
-  use specfem_par,only: it,NSTEP,ibool, &
+  use specfem_par,only: it,ibool, &
        xix,xiy,xiz,etax,etay,etaz,gammax,gammay,gammaz, &
        hprime_xx,hprime_yy,hprime_zz       
-  use specfem_par_elastic,only: veloc
+  use specfem_par_elastic,only: veloc,displ
   use specfem_par_ASKI
 
   implicit none
@@ -1047,9 +1097,15 @@ subroutine write_ASKI_output()
         do l=1,NGLLX
 
            iglob = ibool(l,j,k,ispec)
-           sumxxi = sumxxi + veloc(1,iglob)*hprime_xx(i,l)
-           sumyxi = sumyxi + veloc(2,iglob)*hprime_xx(i,l)
-           sumzxi = sumzxi + veloc(3,iglob)*hprime_xx(i,l)
+           if(ASKI_store_veloc) then
+              sumxxi = sumxxi + veloc(1,iglob)*hprime_xx(i,l)
+              sumyxi = sumyxi + veloc(2,iglob)*hprime_xx(i,l)
+              sumzxi = sumzxi + veloc(3,iglob)*hprime_xx(i,l)
+           else
+              sumxxi = sumxxi + displ(1,iglob)*hprime_xx(i,l)
+              sumyxi = sumyxi + displ(2,iglob)*hprime_xx(i,l)
+              sumzxi = sumzxi + displ(3,iglob)*hprime_xx(i,l)
+           end if
 
         end do ! l
 
@@ -1061,9 +1117,15 @@ subroutine write_ASKI_output()
         do l=1,NGLLY
 
            iglob = ibool(i,l,k,ispec)
-           sumxeta = sumxeta + veloc(1,iglob)*hprime_yy(j,l)
-           sumyeta = sumyeta + veloc(2,iglob)*hprime_yy(j,l)
-           sumzeta = sumzeta + veloc(3,iglob)*hprime_yy(j,l)
+           if(ASKI_store_veloc) then
+              sumxeta = sumxeta + veloc(1,iglob)*hprime_yy(j,l)
+              sumyeta = sumyeta + veloc(2,iglob)*hprime_yy(j,l)
+              sumzeta = sumzeta + veloc(3,iglob)*hprime_yy(j,l)
+           else
+              sumxeta = sumxeta + displ(1,iglob)*hprime_yy(j,l)
+              sumyeta = sumyeta + displ(2,iglob)*hprime_yy(j,l)
+              sumzeta = sumzeta + displ(3,iglob)*hprime_yy(j,l)
+           end if
 
         end do ! l
 
@@ -1075,13 +1137,21 @@ subroutine write_ASKI_output()
         do l=1,NGLLZ
 
            iglob = ibool(i,j,l,ispec)
-           sumxgamma = sumxgamma + veloc(1,iglob)*hprime_zz(k,l)
-           sumygamma = sumygamma + veloc(2,iglob)*hprime_zz(k,l)
-           sumzgamma = sumzgamma + veloc(3,iglob)*hprime_zz(k,l)
+           if(ASKI_store_veloc) then
+              sumxgamma = sumxgamma + veloc(1,iglob)*hprime_zz(k,l)
+              sumygamma = sumygamma + veloc(2,iglob)*hprime_zz(k,l)
+              sumzgamma = sumzgamma + veloc(3,iglob)*hprime_zz(k,l)
+           else
+              sumxgamma = sumxgamma + displ(1,iglob)*hprime_zz(k,l)
+              sumygamma = sumygamma + displ(2,iglob)*hprime_zz(k,l)
+              sumzgamma = sumzgamma + displ(3,iglob)*hprime_zz(k,l)
+           end if
 
         end do ! l
 
-        ! now calculate the derivative of veloc w.r.t. x, y and z with help of the sums calculated above
+        ! now calculate the derivative of veloc (displ) w.r.t. x, y and z with help of the sums calculated above
+        ! also call it u if veloc is stored, since in the context of ASKI, this velocity field w.r.t Heaviside excitation is 
+        ! interpreted as the DISPLACEMENT field w.r.t Delta-impulse excitation!
 
         ! derivative by x
         uxdx = xix_ip*sumxxi + etax_ip*sumxeta + gammax_ip*sumxgamma
@@ -1099,10 +1169,18 @@ subroutine write_ASKI_output()
         uzdz = xiz_ip*sumzxi + etaz_ip*sumzeta + gammaz_ip*sumzgamma
 
         ! store underived velocity wavefield
+        ! call it u, since in the context of ASKI, this velocity field w.r.t Heaviside excitation is 
+        ! interpreted as the DISPLACEMENT field w.r.t Delta-impulse excitation!
         iglob = ibool(i,j,k,ispec)
-        ux = veloc(1,iglob)
-        uy = veloc(2,iglob)
-        uz = veloc(3,iglob)
+        if(ASKI_store_veloc) then
+           ux = veloc(1,iglob)
+           uy = veloc(2,iglob)
+           uz = veloc(3,iglob)
+        else
+           ux = displ(1,iglob)
+           uy = displ(2,iglob)
+           uz = displ(3,iglob)
+        end if
 
         ! strains
         e11 = uxdx
@@ -1159,19 +1237,166 @@ subroutine write_ASKI_output()
 
   end if ! ASKI_np_local > 0
 
-  if (it == NSTEP) then
-    call write_ASKI_output_files()
-
-    ! deallocate everything, simulation is over
-    if(allocated(ASKI_np_local_all)) deallocate(ASKI_np_local_all)
-    if(allocated(ASKI_indx_local)) deallocate(ASKI_indx_local)
-    if(allocated(ASKI_efactors_tapered)) deallocate(ASKI_efactors_tapered)
-    if(allocated(ASKI_spectra_local_double)) deallocate(ASKI_spectra_local_double)
-    if(allocated(ASKI_spectra_local_single)) deallocate(ASKI_spectra_local_single)
-    if(allocated(ASKI_jf)) deallocate(ASKI_jf)
- end if ! it == NSTEP
-
 end subroutine write_ASKI_output
+!
+!-------------------------------------------------------------------------------------------
+!
+subroutine save_ASKI_output()
+  use specfem_par_ASKI
+
+  implicit none
+
+  if(.not.COMPUTE_ASKI_OUTPUT) return
+
+  if(ASKI_DECONVOLVE_STF) call deconvolve_stf_from_ASKI_output()
+
+  call write_ASKI_output_files()
+
+  ! deallocate everything, simulation is over
+  if(allocated(ASKI_np_local_all)) deallocate(ASKI_np_local_all)
+  if(allocated(ASKI_indx_local)) deallocate(ASKI_indx_local)
+  if(allocated(ASKI_efactors_tapered)) deallocate(ASKI_efactors_tapered)
+  if(allocated(ASKI_spectra_local_double)) deallocate(ASKI_spectra_local_double)
+  if(allocated(ASKI_spectra_local_single)) deallocate(ASKI_spectra_local_single)
+  if(allocated(ASKI_jf)) deallocate(ASKI_jf)
+end subroutine save_ASKI_output
+!
+!-------------------------------------------------------------------------------------------
+!
+subroutine deconvolve_stf_from_ASKI_output()
+  use constants,only: OUTPUT_FILES_BASE
+  use specfem_par,only: myrank,NSTEP,DT
+  use specfem_par_ASKI
+  implicit none
+  double precision, external :: comp_source_time_function
+  complex(kind=kind(1.d0)), dimension(:), allocatable :: stf_spectrum_double
+  double precision, dimension(:), allocatable :: stf_deconv
+  double precision :: dummy_time,stf_value_left,stf_value_tmp
+  integer :: jt,jf,IOASKI,ios
+  character(len=41) :: filename_stf_deconv,filename_stf_spectrum_dconv
+
+  allocate(stf_deconv(NSTEP))
+
+  ! make this routine independent of the knowledge about the chosen stf 
+  ! by reading in output OUTPUT_FILES/plot_source_time_function.txt (assuming it is produced)
+  ! THIS WAY, THE CODE SHOULD WORK EVEN IN CASE THE CONVENTION ABOUT GAUSSIAN/ERROR FUNCTION
+  ! HAS CHANGED!
+  if(myrank==0) then
+     call get_file_unit_ASKI(IOASKI)
+     open(unit=IOASKI,file=trim(OUTPUT_FILES_BASE)//'plot_source_time_function.txt',&
+          form='formatted',status='old',action='read',iostat=ios)
+     if(ios/=0) call exit_MPI(myrank,"could not open source time function file '"//trim(OUTPUT_FILES_BASE)//&
+          'plot_source_time_function.txt'//"' to read")
+     do jt = 1,NSTEP
+        read(IOASKI,*) dummy_time,stf_deconv(jt)
+     end do ! jt
+     close(IOASKI)
+  end if
+
+  ! Since it is a bit more complicated to broadcast the stf only to those ranks which hold any ASKI output,
+  ! let all ranks enter this routine to this point here and broadcast to all.
+  call bcast_all_dp(stf_deconv,NSTEP)
+
+  ! Those ranks which do not hold any ASKI output can leave this routine now, EXCEPT rank 0 which writes the logs below
+  if(ASKI_np_local <= 0 .and. myrank/=0) then
+     deallocate(stf_deconv)
+     return
+  end if
+
+  ! if velocity was stored above, differentiate source time function by central finite differences
+  if(ASKI_store_veloc) then
+     stf_value_left = stf_deconv(1)
+     do jt = 2,NSTEP-1
+        stf_value_tmp = stf_deconv(jt) ! need to memorize the original value (will be the left one for the next step)
+        stf_deconv(jt) = (stf_deconv(jt+1)-stf_value_left)/(2.d0*DT)
+        stf_value_left = stf_value_tmp
+     end do
+     ! make the derivative continuous at the beginning and the end
+     ! however, when using this properly, it should be zero anyway AND ADDITIONALLY it should be tapered to zero at the end
+     stf_deconv(1) = stf_deconv(2)
+     stf_deconv(NSTEP) = stf_deconv(NSTEP-1)
+  end if ! ASKI_store_veloc
+
+  ! now transform stf_deconv to spectrum at the chosen discrete frequencies
+
+  allocate(stf_spectrum_double(ASKI_nf))
+!!$  stf_spectrum_double = (0.d0,0.d0)
+!!$  do jt = 1,NSTEP
+!!$     do jf = 1,ASKI_nf
+!!$        stf_spectrum_double(jf) = stf_spectrum_double(jf) + stf_deconv(jt)*ASKI_efactors_tapered(jf,jt)
+!!$     end do ! jf
+!!$  end do ! jt
+  stf_spectrum_double = matmul(ASKI_efactors_tapered,stf_deconv)
+
+  ! RANK 0 WRITES OUT LOGS CONTAINING THE (DIFFERENTIATED) STF AND THE SPECTRUM WHICH IS DECONVOLVED
+  if(myrank==0) then
+     if(ASKI_store_veloc) then
+        filename_stf_deconv = 'LOG_ASKI_DECONVOLVE_stf_diff.dat'
+        filename_stf_spectrum_dconv = 'LOG_ASKI_DECONVOLVE_stf_diff_spectrum.dat'
+        write(*,*) "WILL DECONVOLVE DIFFERENTIATED SOURCE-TIME-FUNCTION FROM ASKI KERNEL SPECTRA (velocity field was stored). ",&
+             "LOGS CONTAINING THIS TIME-SERIES AND ITS SPECTRUM ARE WRITTEN NOW TO OUTPUT_FILES/"
+        call write_ASKI_log("LOG_ASKI_DECONVOLVE_stf.txt",&
+             "In Par_file_ASKI: ASKI_DECONVOLVE_STF is .true.; so source-time-function is "//&
+             "deconvolved from spectral ASKI kernel output. A quasi-Heaviside stf should have "//&
+             "been used by SPECFEM for this moment tensor source. For reasons of numerical stability: "//&
+             "spectra of particle velocity were stored as kernel output, which now will be "//&
+             "deconvolved by a gaussian (i.e. the differentiated stf which has spectrum close "//&
+             "to 1.0, so can be deconvolved in a numerically stable way). Final kernel output, "//&
+             "hence, will be spectra of particle displacement w.r.t. an actual dirac stf! Files "//&
+             "'LOG_ASKI_DECONVOLVE_stf_diff.dat', 'LOG_ASKI_DECONVOLVE_stf_diff_spectrum.dat' "//&
+             "contain the deconvolved stf and its spectrum at the ASKI frequencies")
+     else ! ASKI_store_veloc
+        filename_stf_deconv = 'LOG_ASKI_DECONVOLVE_stf.dat'
+        filename_stf_spectrum_dconv = 'LOG_ASKI_DECONVOLVE_stf_spectrum.dat'
+        write(*,*) "WILL DECONVOLVE SOURCE-TIME-FUNCTION FROM ASKI KERNEL SPECTRA (displacement field was stored). ",&
+             "LOGS CONTAINING THIS TIME-SERIES AND ITS SPECTRUM ARE WRITTEN NOW TO OUTPUT_FILES/"
+        call write_ASKI_log("LOG_ASKI_DECONVOLVE_stf.txt",&
+             "In Par_file_ASKI: ASKI_DECONVOLVE_STF is .true.; so source-time-function is "//&
+             "deconvolved from spectral ASKI kernel output. A thin Gaussian stf should have "//&
+             "been used by SPECFEM for this single force source. "//&
+             "Spectra of particle displacement were stored as kernel output, which now will be "//&
+             "deconvolved by the gaussian stf. Final kernel output, "//&
+             "hence, will be spectra of particle displacement w.r.t. an actual dirac stf! Files "//&
+             "'LOG_ASKI_DECONVOLVE_stf.dat', 'LOG_ASKI_DECONVOLVE_stf_spectrum.dat' "//&
+             "contain the deconvolved stf and its spectrum at the ASKI frequencies")
+     end if ! ASKI_store_veloc
+
+     call get_file_unit_ASKI(IOASKI)
+     open(unit=IOASKI,file=trim(OUTPUT_FILES_BASE)//trim(filename_stf_deconv),&
+          form='formatted',status='unknown',action='write')
+     do jt = 1,NSTEP
+        write(IOASKI,*) real(dble(jt-1)*DT),real(stf_deconv(jt))
+     end do ! jt
+     close(IOASKI)
+     call get_file_unit_ASKI(IOASKI)
+     open(unit=IOASKI,file=trim(OUTPUT_FILES_BASE)//trim(filename_stf_spectrum_dconv),&
+          form='formatted',status='unknown',action='write')
+     do jf = 1,ASKI_nf
+        write(IOASKI,*) ASKI_jf(jf)*ASKI_df, stf_spectrum_double(jf), &
+             atan2(aimag(stf_spectrum_double(jf)),real(stf_spectrum_double(jf))), abs(stf_spectrum_double(jf))
+     end do ! jf
+     close(IOASKI)
+
+     ! IF myrank==0 IS ONLY HERE TO WRITE THE DECONVOLVE LOG OUTPUT, BUT DOES NOT HAVE ANY ASKI OUTPUT, 
+     ! THEN IT SHOULD DEALLOCATE THE DECONVOLVE STUFF AND LEAVE THIS ROUTINE
+     if(ASKI_np_local <= 0) then
+        deallocate(stf_deconv,stf_spectrum_double)
+        return
+     end if
+  end if ! myrank == 0
+
+  if(ASKI_DFT_double) then
+     do jf = 1,ASKI_nf
+        ASKI_spectra_local_double(:,jf,:) = ASKI_spectra_local_double(:,jf,:) / stf_spectrum_double(jf)
+     end do ! jf
+  else ! ASKI_DFT_double
+     do jf = 1,ASKI_nf
+        ASKI_spectra_local_single(:,jf,:) = ASKI_spectra_local_single(:,jf,:) / stf_spectrum_double(jf)
+     end do ! jf
+  end if ! ASKI_DFT_double
+
+  deallocate(stf_deconv,stf_spectrum_double)
+end subroutine deconvolve_stf_from_ASKI_output
 !
 !-------------------------------------------------------------------------------------------
 !
@@ -1188,6 +1413,8 @@ subroutine write_ASKI_output_files()
   logical :: file_exists
   character (len=7) :: open_status
   
+  call synchronize_all()
+
   if(myrank == 0) then
 
      allocate(spectrum_one_frequency(sum(ASKI_np_local_all),9))
@@ -1212,7 +1439,7 @@ subroutine write_ASKI_output_files()
            end if
         end do ! iproc
 
-        ! write spectrum_one_frequency to file file basename.0000jf
+        ! write spectrum_one_frequency to file file basename.jf###### , where '######' contains the frequency index
         write(filename,"(a,i6.6)") trim(ASKI_outfile)//".jf",ASKI_jf(jf)
         ! do not worry about whether to overwrite or not, if program comes here, it already has been checked
         ! if the value of OVERWRITE_ASKI_OUTPUT is in conflict with existing files
@@ -1259,12 +1486,12 @@ end subroutine write_ASKI_output_files
 !-------------------------------------------------------------------------------------------
 !
 subroutine write_ASKI_log(filename,log_message)
-  use constants,only: OUTPUT_FILES_PATH
+  use constants,only: OUTPUT_FILES_BASE
   implicit none
   character(len=*) :: filename,log_message
   integer :: fu
   call get_file_unit_ASKI(fu)
-  open(unit=fu,file=trim(OUTPUT_FILES_PATH)//trim(filename),&
+  open(unit=fu,file=trim(OUTPUT_FILES_BASE)//trim(filename),&
        form='formatted',status='unknown',action='write')
   write(fu,*) trim(log_message)
   close(fu)
@@ -1273,7 +1500,7 @@ end subroutine write_ASKI_log
 !-------------------------------------------------------------------------------------------
 !
 subroutine write_ASKI_log_start()
-  use constants,only: OUTPUT_FILES_PATH
+  use constants,only: OUTPUT_FILES_BASE
   use specfem_par,only: NPROC,NGLLX,NGLLY,NGLLZ
   use specfem_par_ASKI
   integer :: fu,i
@@ -1282,8 +1509,17 @@ subroutine write_ASKI_log_start()
   logical :: file_exists
   real :: size_main_file,size_jf_file
   call get_file_unit_ASKI(fu)
-  open(unit=fu,file=trim(OUTPUT_FILES_PATH)//'LOG_ASKI_start.txt',&
+  open(unit=fu,file=trim(OUTPUT_FILES_BASE)//'LOG_ASKI_start.txt',&
        form='formatted',status='unknown',action='write')
+
+  if(ASKI_MAIN_FILE_ONLY) then
+     write(fu,*) "ONLY THE MAIN ASKI OUTPUT FILE WILL BE PRODUCED, as indicated by the logical parameter "//&
+          "'ASKI_MAIN_FILE_ONLY' in DATA/Par_file_ASKI"
+     write(fu,*) "HENCE, NO FREQUENCY KERNEL OUTPUT FILES WILL BE WRITTEN, EVEN IF INDICATED BELOW IN THIS LOGFILE!"
+     write(fu,*) "For reasons of debugging and checking, this output was kept nevertheless."
+     write(fu,*) ""
+  end if
+
   write(fu,*) "Hello, this is SPECFEM3D_Cartesian for ASKI"
   write(fu,*) ""
   write(fu,*) "computing ASKI output now on ",NPROC," procs with following parameters:"
@@ -1318,7 +1554,7 @@ subroutine write_ASKI_log_start()
   end select
   write(fu,*) ""
   write(fu,*) "local number of wavefield points (at which ASKI output is computed):"
-  do i = 1,NPROC-1
+  do i = 1,NPROC
      write(fu,*) "   proc ",i-1," : ",ASKI_np_local_all(i)
   end do ! iproc
   write(fu,*) "in total : ",sum(ASKI_np_local_all)
@@ -1345,7 +1581,7 @@ subroutine write_ASKI_log_start()
      ! if the file existed, this would have been detected above already, so if program comes here, the file does not exist
      overwrite_message = 'does not exist and will be newly created'
   end if
-  write(fu,*) "   base_filename.main (",size_main_file," MiB)  "//trim(overwrite_message)
+  write(fu,*) "   base_filename.main  (",size_main_file," MiB)  "//trim(overwrite_message)
 
   do i = 1,ASKI_nf
      write(filename,"(a,i6.6)") trim(ASKI_outfile)//".jf",ASKI_jf(i)
@@ -1362,7 +1598,7 @@ subroutine write_ASKI_log_start()
         overwrite_message = 'does not exist and will be newly created'
      end if
      write(filename,"('   base_filename.jf',i6.6,'  ')") ASKI_jf(i)
-     write(fu,*) trim(filename),"(",size_jf_file," MiB)  "//trim(overwrite_message)
+     write(fu,*) trim(filename),"  (",size_jf_file," MiB)  "//trim(overwrite_message)
   end do ! i
   close(fu)
 end subroutine write_ASKI_log_start

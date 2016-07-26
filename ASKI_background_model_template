@@ -1,0 +1,42 @@
+1D cubic-spline-interpolation background model, used for SPECFEM3D_Cartesian for ASKI. THIS FIRST ROW IS IGNORED (for meaning of the following lines, see below)
+0.0
+2
+2 4
+0.0     1800       700.0      250.0       600    57822
+12.0    1800       700.0      250.0       600    57822
+12.0    1800       1200.0     500.0       600    57822
+15.0    2000       1700.0     600.0       600    57822
+20.0    2100       2500.0    1000.0       600    57822
+30.0    2200       3000.0    1300.0       600    57822
+
+
+
+
+Everything below the expected content is ignored, hence is this comment block.
+
+The table of values starting from line 4 contains the depth and the (isotropic) model values at that depth. 
+The columns are separated by white space and assume the meaning:
+depth [m]  density [Kg/m^3]  vp [m/s]  vs [m/s]  Qmu  Qkappa
+The depth is assumed to be monotonically INCREASING, the first line should have depth 0. 
+
+The second line defines the maximum z value (as internally, z values are processed there is no knowledge about
+"depth", hence the z-value of the following depth nodes are computed as z_node = zmax - depth_node)
+
+The third and fourth line simply define the characteristics of the depth nodes which are defined in the table
+(for convenience when reading in the file):
+Line three must contain the number of layers, between which discontinuities are allowed. 
+At the boundary of any two layers, there should be a "double node", i.e. two lines with SAME depth. There is no spline interpolation
+done beyond any layer boundaries, i.e. over any double node. Different model values on either side of a double node
+will be interpreted as a discontinuity in the model. 
+The fourth line must contain the number of nodes inside each layer. 
+
+
+The above example has 2 layers. 
+The first layer has 2 nodes (at 0.0 and 12.0 m depth) and the model is constant in this layer (same model values at the two nodes).
+There is a discontinuity between first and second layer in the seismic velocities, since the model values are different in the two 12m-lines. 
+Density, however, is continuous there since the two 12.0m-lines have the same density value.
+(By setting always double nodes and choosing the same model values at the double nodes,
+this ways you may create a model which is linearly interpolated between the nodes)
+The second layer has 4 nodes (at 12.0, 15.0, 20.0 and 30.0 m depth), there will be a cubic spline fitted through these 4 points. 
+
+The definition of model values of this example model stops at 30m depth. THIS DOES NOT DEFINE ANY MODEL VALUES BELOW 30m DEPTH!

@@ -2,26 +2,23 @@
 #
 #!/usr/bin/env /usr/bin/python
 #
-# the following unfortunately does not work on our grid engine! so use path.append("/home/florian/programme/f2py") (below)
-#!/usr/bin/env PYTHONPATH=/home/florian/programme/f2py /usr/bin/python
-#
 #----------------------------------------------------------------------------
-#   Copyright 2013 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+#   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 #
-#   This file is part of ASKI version 0.3.
+#   This file is part of ASKI version 1.0.
 #
-#   ASKI version 0.3 is free software: you can redistribute it and/or modify
+#   ASKI version 1.0 is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 2 of the License, or
 #   (at your option) any later version.
 #
-#   ASKI version 0.3 is distributed in the hope that it will be useful,
+#   ASKI version 1.0 is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License
-#   along with ASKI version 0.3.  If not, see <http://www.gnu.org/licenses/>.
+#   along with ASKI version 1.0.  If not, see <http://www.gnu.org/licenses/>.
 #----------------------------------------------------------------------------
 #
 # import python modules
@@ -31,18 +28,11 @@ from os import mkdir as os_mkdir
 from os import path as os_path
 from os import listdir as os_listdir
 from sys import exit as sys_exit
+from sys import path as sys_path
 from time import time as time_time
 from time import ctime as time_ctime
-
-# import own modules
-from sys import path
-path.append("/home/florian/programme/include")
-path.append("/home/florian/programme/ASKI")
-#print path
-from inputParameter import inputParameter
-from readEventStationFile import eventList,stationList
 #
-# get SUN GRID ENGINE environmental variables
+# get SUN GRID ENGINE environmental variables (if any)
 SGE_job_id = os_environ.get('JOB_ID')
 runs_on_SGE = SGE_job_id is not None
 SGE_o_workdir = os_environ.get('SGE_O_WORKDIR')
@@ -52,14 +42,36 @@ if SGE_pe_hostfile is not None:
     SGE_pe_hostfile_content = open(SGE_pe_hostfile).read()
 else:
     SGE_pe_hostfile_content = 'no content, file PE_HOSTFILE is empty'
-
 #
-#-----------------------------------------------------------
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
 # IMPORTANT STUFF TO ADJUST
 #
+# import own modules
+# when running in SUN GRID ENGINE (or maybe also on other HPC queueing systems), the PYTHONPATH
+# environment variable must be additionally told, where your own python modules are, before you
+# can import them.
+# There are two options here:
+# 1) manually append the src path of your ASKI main package installation to variable sys_path:
+#######sys_path.append("/home/florian/code/ASKI/src")
+# 2) copy the files readEventStationFile.py and inputParameter.py to the path from which this
+#    script is called. Then append current path "./" to the PYTHONPATH
+sys_path.append("./")
+# Following either 1) or 2), now the following modules can be imported:
+from inputParameter import inputParameter
+from readEventStationFile import eventList,stationList
+#
 # main parameter file of inversion
-main_parfile = '/rscratch/minos27/Kernel/specfem3D/inversions/test/main_parfile_test_new_specfem3d'
+main_parfile = '/rscratch/minos18/florian/ASKI/ASKI_inversion_cross_borehole/main_parfile_cross_borehole'
+#
+# define the command which will be called (via system call) for each simulation;
+# e.g. can be something like './process_solver_only.sh' along with using a different command in the first iteration (see below)
+command_system_call = './process_solver_only.sh'
+#
+# if in the VERY FIRST iteration (i.e. the first simulation that is done) a DIFFERENT
+# command should be issued, indicate so by the following flag, and define the alternative command
+use_different_command_in_first_simulation = True
+command_system_call_first_simulation = './process.sh'
 #
 # say, if ASKI output volume, which is used in SPECFEM, should be defined by the inversion grid 
 # definition of the current inversion grid (if possible)
@@ -106,31 +118,56 @@ number_of_emails_during_iteration = 0
 ##   displ_simulations = 'all'
 ##      in this case kernel_displacement output is computed for all events defined in FILE_EVENT_LIST
 ##   displ_simulations = 'Source024,Source002,Source005'
-##      for all events in the-',' separated list of eventIDs (here 3 events: Source024, Source002 and Source005), 
+##      for all events in the ','-separated list of eventIDs (here 3 events: Source024, Source002 and Source005), 
 ##      kernel_displacement output is computed (eventIDs must be present in FILE_EVENT_LIST)
 ##   displ_simulations = 'all-except:S001,S002,S024'
 ##      all events are taken into account, except the ones defined by the ','-separated list of eventIDs
 ##      following the word 'all-except:'  (here all events except the three S001,S002 and S024)
-##   ALL INVALID eventIDs (i.e. not present in FILE_EVENT_LIST) WILL BE IGNORED!
+##   IF THERE IS ANY INVALID eventID (i.e. not present in FILE_EVENT_LIST), THIS SCRIPT WILL RAISE AN ERROR!
 ##
 ## gt_simulations must be of one of the folling forms:
 ##   gt_simulations = ''
 ##      no kernel_green_tensor simulations will be done
 ##   gt_simulations = 'all'
-##      in this case kernel_green_tensor output is computed for all components X,Y,Z of stations defined in FILE_STATION_LIST
-##   gt_simulations = 'Geophone23,Geophone2'
-##      for all stations in the ','-separated list of station names (here 2 stations: Geophone23 and Geophone2), 
-##      kernel_green_tensor output is computed (stations must be present in FILE_STATION_LIST)
-##   gt_simulations = 'all-except:Geophone3'
-##      all stations are taken into account, except the ones defined by the ','-separated list of station names
-##      following the word 'all-except:' (here all stations excpet Geophone3)
-##   ALL INVALID station names (i.e. not present in FILE_STATION_LIST) WILL BE IGNORED!
+##      in this case kernel_green_tensor output is computed for all stations defined in FILE_STATION_LIST for 
+##      all components defined by gt_components (see below for form of gt_components)
+##   gt_simulations = 'all-except:Geophone23,Geophone2'
+##      all stations are taken into account (at all components defined by gt_components), except the ones defined by 
+##      the ','-separated list of station names following the word 'all-except:' (here all stations excpet Geophone23 and Geophone2)
+##   gt_simulations = 'specific'
+##      in this case kernel_green_tensor output is computed for specific components of specific stations, BOTH
+##      defined by gt_components (see below for form of gt_components)
+##   IF THERE IS ANY INVALID station name (i.e. not present in FILE_STATION_LIST), THIS SCRIPT WILL RAISE AN ERROR!
+##
+## gt_components must be of the following form in case of gt_simulations being 'all' or 'all-except:...' :
+##   gt_components = 'CX,CZ'
+##     a ','-separated list of valid components (the currently supported components are the global Cartesian 
+##     components 'CX','CY','CZ')
+##   IF THERE IS ANY INVALID COMPONENT, THIS SCRIPT WILL RAISE AN ERROR!
+##
+## gt_components must be of the following form in case of gt_simulations being 'specific' :
+##   gt_components = 'Geophone23:CX,CY,CZ;Geophone2:CZ;ReceiverB:CY,CX'
+##     a ';'-separated list of entries consisting of the station name and ':' followed by a ','-separated list of 
+##     valid components. This defines the stations and the station-specific components for which this script
+##     computes Green functions. 
+##   IF THERE IS ANY INVALID COMPONENT, THIS SCRIPT WILL RAISE AN ERROR!
 ## 
 ## measured_data_simulations must be of the same form as displ_simulations (see above)
 ####################################################################################################################
 displ_simulations = 'all'
 gt_simulations = 'all'
+gt_components = 'CX,CY,CZ'
 measured_data_simulations = ''
+#
+# DATA OUTPUT
+#
+# specify here, whether or not the SPECFEM3D STATIONS file should be produced by ASKI (based on ASKI's stations file)
+create_specfem_stations = True
+#
+#
+# END OF STUFF TO ADJUST
+#
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #
 #
 ############################################################
@@ -197,7 +234,7 @@ class simulation:
                     param = inputParameter(parfile_invgrid)
                 except:
                     self.log("### STOP : could not create inputParameter object for the 'scartInversionGrid' parameter file '"+
-                             parfile_invgrid+"'\n\n")
+                             parfile_invgrid+"' (for defining ASKI output volume from inversion grid)\n\n")
                     raise
                 # check if all required keys are set
                 noKeys = param.keysNotPresent(['SCART_INVGRID_CX','SCART_INVGRID_CY','SCART_INVGRID_ZMAX',
@@ -206,9 +243,9 @@ class simulation:
                                                'SCART_INVGRID_THICKNESS','SCART_INVGRID_NX','SCART_INVGRID_NY'])
                 if len(noKeys) > 0:
                     self.log("### STOP : the following keywords are required in 'scartInversionGrid' parameter file '"+
-                             iter_parfile+"':\n"+
+                             self.iparam.sval('PARFILE_INVERSION_GRID')+"' (for defining ASKI output volume from inversion grid):\n"+
                              "### "+',  '.join(noKeys)+"\n\n")
-                    raise Exception("missing keywords in 'scartInversionGrid' paramter file; see logfile '"+logfile+"'")
+                    raise Exception("missing keywords in 'scartInversionGrid' paramter file (for defining ASKI output volume from inversion grid); see logfile '"+logfile+"'")
                 # SCART_INVGRID_WX
                 if param.fval('SCART_INVGRID_WX') is not None and param.fval('SCART_INVGRID_WX') > 0.:
                     self.ASKI_wx = param.sval('SCART_INVGRID_WX')
@@ -309,7 +346,21 @@ class simulation:
                 self.log("### STOP : event list from file '"+self.mparam.sval('FILE_EVENT_LIST')+"' is for coordinate system '"+
                          self.evlist.csys+"', only 'C' supported here\n\n")
                 raise Exception("coordinate system of event list file not supported; see logfile '"+logfile+"'")
-        if gt_simulations != '':
+            if create_specfem_stations:
+                try:
+                    self.statlist = stationList(self.mparam.sval('FILE_STATION_LIST'),list_type='standard')
+                except:
+                    self.log("### STOP : could not read station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"'\n\n")
+                    raise
+                if self.statlist.nstat == 0:
+                    self.log("### STOP : station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"' does not contain"+
+                             "any valid stations\n\n")
+                    raise Exception("no stations in ASKI station list file; see logfile '"+logfile+"'")
+                if self.statlist.csys != 'C':
+                    self.log("### STOP : station list from file '"+self.mparam.sval('FILE_EVENT_LIST')+"' is for coordinate system '"+
+                             self.statlist.csys+"', only 'C' supported here\n\n")
+                    raise Exception("coordinate system of station list file not supported; see logfile '"+logfile+"'")
+        if gt_simulations != '' and not hasattr(self,'statlist'):
             try:
                 self.statlist = stationList(self.mparam.sval('FILE_STATION_LIST'),list_type='standard')
             except:
@@ -318,14 +369,23 @@ class simulation:
             if self.statlist.nstat == 0:
                 self.log("### STOP : station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"' does not contain"+
                          "any valid stations\n\n")
-                raise Exception("no stations in station list file; see logfile '"+logfile+"'")
+                raise Exception("no stations in ASKI station list file; see logfile '"+logfile+"'")
             if self.statlist.csys != 'C':
                 self.log("### STOP : station list from file '"+self.mparam.sval('FILE_EVENT_LIST')+"' is for coordinate system '"+
                          self.statlist.csys+"', only 'C' supported here\n\n")
                 raise Exception("coordinate system of station list file not supported; see logfile '"+logfile+"'")
             
         self.all_tasks = []
+        self.gt_comp_files = []
         self.append_valid_tasks()
+        for staname,file_content in self.gt_comp_files:
+            filename = os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_GREEN_TENSORS'),'kernel_gt_'+staname+'.comp')
+            try:
+                open(filename,'w').write(file_content)
+            except:
+                self.log("### STOP : could not write Green tensor components file '"+filename+"' for station '"+
+                         staname+"'\n\n")
+                raise Exception("could not write a Green tensor components file; see logfile '"+logfile+"'")
 
         self.index_iteration_send_email = [0]
         if type(number_of_emails_during_iteration) is int:
@@ -336,24 +396,33 @@ class simulation:
         if runs_on_SGE:
             log_SGE_info = ('running on SUN GRID ENGINE with JOB_ID '+str(SGE_job_id)+'; master host is '+
                             str(SGE_hostname)+'; content of PE_HOSTFILE is \n--- START CONTENT PE_HOSTFILE ---\n'+
-                            SGE_pe_hostfile_content+'--- END CONTENT PE_HOSTFILE ---\n')
+                            SGE_pe_hostfile_content+'--- END CONTENT PE_HOSTFILE ---')
         else:
             log_SGE_info = ''
         self.log('################################################################################\n'+
                  "Welcome to these automated SPECFEM3D_Cartesian simulations for ASKI\n"+log_SGE_info+"\n"+
-                 "  main ASKI parameter file: '"+main_parfile+"'\n"+
-                 "  iteration step %i\n"%self.mparam.ival('CURRENT_ITERATION_STEP')+
-                 "  iteration step specific parameter file: '"+iter_parfile+"'\n"+
-                 "  './process.sh' tells me, we're using "+str(self.nproc)+" procs\n"+
+                 "main ASKI parameter file: '"+main_parfile+"'\n"+
+                 "iteration step %i\n"%self.mparam.ival('CURRENT_ITERATION_STEP')+
+                 "iteration step specific parameter file: '"+iter_parfile+"'\n"+
+                 "'./process.sh' tells me, we're using "+str(self.nproc)+" procs\n"+
+                 "OUTPUT_FILES_PATH = '"+OUTPUT_FILES_PATH+"'\n"+
+                 "LOCAL_PATH = '"+LOCAL_PATH+"'\n"+
+                 "IN_DATA_FILES_PATH = '"+IN_DATA_FILES_PATH+"'\n"+
                  "\n"+
                  "according to the simulation strings \n"+
                  "  displ_simulations = '"+displ_simulations+"'\n"+
                  "  gt_simulations = '"+gt_simulations+"'\n"+
+                 "  gt_components = '"+gt_components+"'\n"+
                  "  measured_data_simulations = '"+measured_data_simulations+"',\n"+
                  "now the following "+str(len(self.all_tasks))+" simulations are done (in this order): \n\n"+
                  "(TYPE ID[_component])\n"+
                  ',  '.join(["(%s %s)"%typ_task for typ_task in self.all_tasks])+"\n"+
                  '\n')
+        if len(self.gt_comp_files) > 0:
+            self.log("already in advance, all "+str(len(self.gt_comp_files))+" Green tensor component files "+
+                     "(containing the Green tensor components for each station) were written to paths '"+
+                     os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_GREEN_TENSORS'),'kernel_gt_staname.comp')+"'\n"+
+                     "\n")
         if send_emails:
             self.log("this log will be sent via email to '"+email_receiver+"' after the following simulations (indices, first index is 1):\n"+
                      ', '.join([str(i+1) for i in self.index_iteration_send_email])+'\n'
@@ -363,7 +432,7 @@ class simulation:
             self.log("this log will not be sent via email anywhere\n\n")
 
         # info about ASKI output volume
-        if define_ASKI_output_volume_by_inversion_grid:
+        if define_ASKI_output_volume_by_inversion_grid and (displ_simulations != '' or gt_simulations!= '') :
             self.log("for every simulation of type displ or gt, the ASKI output volume in Parfile_ASKI\n"+
                      "will be defined by the following values:\n"+
                      "  ASKI_type_inversion_grid = "+self.ASKI_type_inversion_grid+" (meaning '"+ASKI_type_inversion_grid_char+"')\n"+
@@ -378,7 +447,7 @@ class simulation:
                      "  ASKI_cz = "+self.ASKI_cz+"\n"+
                      "\n")
         else:
-            self.log("the ASKI output volume in Parfile_ASKI will not be defined by this script,\n"+
+            self.log("the ASKI output volume in Par_file_ASKI will not be defined by this script,\n"+
                      "you should have taken care of that yourself\n\n")
 
         self.time_start = time_time()
@@ -393,38 +462,144 @@ class simulation:
             valid_evids = sorted([key for key in self.evlist.events.keys() if type(key) is str])
         if gt_simulations != '':
             valid_stanames = sorted([key for key in self.statlist.stations.keys() if type(key) is str])
+            valid_gt_components = ['CX','CY','CZ']
 
         # handle string displ_simulations
         if displ_simulations != '':
             if displ_simulations == 'all':
                 self.all_tasks += [('displ',evid) for evid in valid_evids]
             elif displ_simulations.startswith('all-except:'):
-                self.all_tasks += [('displ',evid) for evid in valid_evids if not evid in displ_simulations[11:].split(',')]
+                given_evids = displ_simulations[11:].split(',')
+                given_invalid_evids = [evid for evid in given_evids if not evid in valid_evids]
+                if len(given_invalid_evids) > 0:
+                    self.log("### STOP : the following invalid eventIDs (that are not contained in FILE_EVENT_LIST) "+
+                             "were detected in string 'displ_simulations':\n"+
+                             "### "+',  '.join(given_invalid_evids)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_evids))+
+                                    " invalid eventIDs detected in string 'displ_simulations'; see logfile '"+logfile+"'")
+                self.all_tasks += [('displ',evid) for evid in valid_evids if not evid in given_evids]
             else:
-                self.all_tasks += [('displ',evid) for evid in displ_simulations.split(',') if evid in valid_evids]
+                # expect here simply a ','-separated list of eventIDs
+                given_evids = displ_simulations.split(',')
+                given_invalid_evids = [evid for evid in given_evids if not evid in valid_evids]
+                if len(given_invalid_evids) > 0:
+                    self.log("### STOP : the following invalid eventIDs (that are not contained in FILE_EVENT_LIST) "+
+                             "were detected in string 'displ_simulations':\n"+
+                             "### "+',  '.join(given_invalid_evids)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_evids))+
+                                    " invalid eventIDs detected in string 'displ_simulations'; see logfile '"+logfile+"'")
+                self.all_tasks += [('displ',evid) for evid in given_evids]
 
         # handle string gt_simulations
         if gt_simulations != '':
+            # first check gt_components in case of gt_simulations being "all" or starting with "all-except:"
+            if gt_simulations == 'all' or gt_simulations.startswith('all-except:'):
+                given_components = gt_components.split(',')
+                if len(given_components) == 0:
+                    self.log("### STOP : the string 'gt_components' is empty! In case of 'gt_simulations = all' "+
+                             "or gt_simulations starting with 'all-except:', "+
+                             "'gt_components' must contain at least one valid component\n\n")
+                    raise Exception("no gt_components present in case of 'gt_simulations = all' or gt_simulations starting with 'all-except:' ; see logfile '"+logfile+"'")
+                given_invalid_components = [comp for comp in given_components if not comp in valid_gt_components]
+                if len(given_invalid_components) > 0:
+                    self.log("### STOP : the following invalid components were detected in string 'gt_components':\n"+
+                             "### "+',  '.join(given_invalid_components)+"\n"+
+                             "### currently supported components are:\n### "+', ',join(valid_gt_components)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_components))+
+                                    " invalid components detected in string 'gt_components'; see logfile '"+logfile+"'")
+            # now handle 'gt_simulations = all'
             if gt_simulations == 'all':
                 self.all_tasks += [('gt',staname+'_'+comp) for staname in valid_stanames 
-                                   for comp in ['X','Y','Z']]
+                                   for comp in given_components]
+                file_content = str(len(given_components))+"\n"+"\n".join(given_components)+"\n"
+                self.gt_comp_files += [(staname,file_content) for staname in valid_stanames]
+            # now handle 'gt_simulations = all-except:...'
             elif gt_simulations.startswith('all-except:'):
+                given_stanames = gt_simulations[11:].split(',')
+                given_invalid_stanames = [staname for staname in given_stanames if not staname in valid_stanames]
+                if len(given_invalid_stanames) > 0:
+                    self.log("### STOP : the following invalid station names (that are not contained in FILE_STATION_LIST) "+
+                             "were detected in string 'gt_simulations':\n"+
+                             "### "+',  '.join(given_invalid_stanames)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_stanames))+
+                                    " invalid station names detected in string 'gt_simulations'; see logfile '"+logfile+"'")
                 self.all_tasks += [('gt',staname+'_'+comp) for staname in valid_stanames 
-                                   if not staname in gt_simulations[11:].split(',') 
-                                   for comp in ['X','Y','Z']]
+                                   if not staname in given_stanames
+                                   for comp in given_components]
+                file_content = str(len(given_components))+"\n"+"\n".join(given_components)+"\n"
+                self.gt_comp_files += [(staname,file_content) for staname in valid_stanames 
+                                       if not staname in given_stanames]
+            # now handle 'gt_simulations = specific'
+            elif gt_simulations == 'specific':
+                given_stanames_comps = gt_components.split(';')
+                if len(given_stanames_comps) == 0:
+                    self.log("### STOP : the string 'gt_components' is empty! In case of 'gt_simulations = specific', "+
+                             "'gt_components' must contain a list of valid station name - component combinations\n\n")
+                    raise Exception("no gt_components specification present in case of 'gt_simulations = specific' ; see logfile '"+logfile+"'")
+                for i,staname_comps in enumerate(given_stanames_comps):
+                    staname_comps_split = staname_comps.split(':')
+                    if len(staname_comps_split) != 2:
+                        self.log("### STOP : the "+str(i+1)+"'th station-component definition '"+staname_comps+
+                                 "' of string 'gt_components' is invalid! 'gt_components' must be of form "+
+                                 " 'Geophone23:CX,CY,CZ;Geophone2:CZ;ReceiverB:CY,CX' in case of 'gt_simulations = specific'\n\n")
+                        raise Exception("gt_components specification invalid in case of 'gt_simulations = specific' ; see logfile '"+logfile+"'")
+                    staname = staname_comps_split[0]
+                    if not staname in valid_stanames:
+                        self.log("### STOP : the "+str(i+1)+"'th station '"+staname+
+                                 "' of string 'gt_components' is not in stations list! 'gt_components' must be of form "+
+                                 " 'Geophone23:CX,CY,CZ;Geophone2:CZ;ReceiverB:CY,CX' in case of 'gt_simulations = specific'\n\n")
+                        raise Exception("gt_components specification invalid in case of 'gt_simulations = specific' ; see logfile '"+logfile+"'")
+                    given_components = staname_comps_split[1].split(',')
+                    if len(given_components) == 0:
+                        self.log("### STOP : the "+str(i+1)+"'th list of components '"+staname_comps_split[1]+
+                                 "' of string 'gt_components' does not contain any components! 'gt_components' must be of form "+
+                                 " 'Geophone23:CX,CY,CZ;Geophone2:CZ;ReceiverB:CY,CX' in case of 'gt_simulations = specific'\n\n")
+                        raise Exception("gt_components specification invalid in case of 'gt_simulations = specific' ; see logfile '"+logfile+"'")
+                    given_invalid_components = [comp for comp in given_components if not comp in valid_gt_components]
+                    if len(given_invalid_components) > 0:
+                        self.log("### STOP : the following invalid components were detected in the "+str(i+1)+
+                                 "'th list of components '"+staname_comps_split[1]+"' of string 'gt_components':\n"+
+                                 "### "+',  '.join(given_invalid_components)+"\n"+
+                                 "### currently supported components are:\n"+
+                                 "### "+', ',join(valid_gt_components)+
+                                 "### 'gt_components' must be of form 'Geophone23:CX,CY,CZ;Geophone2:CZ;ReceiverB:CY,CX' in case of 'gt_simulations = specific'\n\n")
+                        raise Exception("gt_components specification invalid in case of 'gt_simulations = specific' ; see logfile '"+logfile+"'")
+                    # after all checks, it was verified that staname is a valid station name and that 
+                    # all given_components for this station are valid. so add those Green functions to tasks list
+                    self.all_tasks += [('gt',staname+'_'+comp) for comp in given_components]
+                    file_content = str(len(given_components))+"\n"+"\n".join(given_components)+"\n"
+                    self.gt_comp_files += [(staname,file_content)]
+            # if gt_silmulations is neiter 'all', 'specific', nor starts with 'all-except:', raise an ERROR
             else:
-                self.all_tasks += [('gt',staname+'_'+comp) for staname in gt_simulations.split(',') 
-                                   if staname in valid_stanames 
-                                   for comp in ['X','Y','Z']]
+                self.log("### STOP : gt_simulations has the value '"+gt_simulations+"'. It can be either equal to 'all' or "+
+                         "'specific' or can start with 'all-except:'\n\n")
+                raise Exception("invalid value of string 'gt_simulations'; see logfile '"+logfile+"'")
 
         # handle string measured_data_simulations
         if measured_data_simulations != '':
             if measured_data_simulations == 'all':
                 self.all_tasks += [('data',evid) for evid in valid_evids]
             elif measured_data_simulations.startswith('all-except:'):
-                self.all_tasks += [('data',evid) for evid in valid_evids if not evid in measured_data_simulations[11:].split(',')]
+                given_evids = measured_data_simulations[11:].split(',')
+                given_invalid_evids = [evid for evid in given_evids if not evid in valid_evids]
+                if len(given_invalid_evids) > 0:
+                    self.log("### STOP : the following invalid eventIDs (that are not contained in FILE_EVENT_LIST) "+
+                             "were detected in string 'measured_data_simulations':\n"+
+                             "### "+',  '.join(given_invalid_evids)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_evids))+
+                                    " invalid eventIDs detected in string 'measured_data_simulations'; see logfile '"+logfile+"'")
+                self.all_tasks += [('data',evid) for evid in valid_evids if not evid in given_evids]
             else:
-                self.all_tasks += [('data',evid) for evid in measured_data_simulations.split(',') if evid in valid_evids]
+                # expect here simply a ','-separated list of eventIDs
+                given_evids = measured_data_simulations.split(',')
+                given_invalid_evids = [evid for evid in given_evids if not evid in valid_evids]
+                if len(given_invalid_evids) > 0:
+                    self.log("### STOP : the following invalid eventIDs (that are not contained in FILE_EVENT_LIST) "+
+                             "were detected in string 'measured_data_simulations':\n"+
+                             "### "+',  '.join(given_invalid_evids)+"\n\n")
+                    raise Exception("there were "+int(len(given_invalid_evids))+
+                                    " invalid eventIDs detected in string 'measured_data_simulations'; see logfile '"+logfile+"'")
+                self.all_tasks += [('data',evid) for evid in given_evids]
 #
 #-----------------------------------------------------------
 #
@@ -435,6 +610,7 @@ class simulation:
             t_begin_iteration = time_time()
             #
             typ,sid = typ_id
+                
             self.log('################################################################################\n'+
                      time_ctime()+' -- now doing the '+str(i+1)+'-th simulation out of '+str(len(self.all_tasks))+'\n'+
                      "TYPE '"+typ+"', ID '"+sid+"'\n"+
@@ -450,10 +626,16 @@ class simulation:
             self.log("done\n"+
                      "\n")
             #
-            # compile and run mesh decomposition and database generation
-            self.log("run script 'process.sh' now\n")
-            os_system('./process.sh')
-            self.check_process_sh(typ)
+            # call some command by system call which conducts the simulation
+            #
+            # according to flag use_different_command_in_first_simulation, select which run command to use here
+            if use_different_command_in_first_simulation and i==0:
+                run_command = command_system_call_first_simulation
+            else:
+                run_command = command_system_call
+            self.log("run command '"+run_command+"' now via system call\n")
+            os_system(run_command)
+            self.check_if_simulation_was_successful(typ)
             self.log("done\n\n")
             #
             # move OUTPUT_FILES
@@ -484,7 +666,7 @@ class simulation:
             self.log("current time -- "+time_ctime(t_end_iteration)+"\n"+
                      "elapsed time for this simulation (h:min:sec) -- %i : %i : %i"%(this_h,this_min,this_sec)+"\n"
                      "current mean elapsed time per simulation after %i simulations (h:min:sec) -- %i : %i : %i"%(i+1,mean_h,mean_min,mean_sec)+"\n"
-                     "assuming all simulations to last the same time, script will finish presumably -- "+time_ctime(t_finish)+"\n\n\n")
+                     "assuming all remaining "+str(len(self.all_tasks)-i-1)+" simulations to last the same time, script will finish presumably -- "+time_ctime(t_finish)+"\n\n\n")
             #
             # send logfile via email
             if send_emails and i in self.index_iteration_send_email:
@@ -508,6 +690,7 @@ class simulation:
 #-----------------------------------------------------------
 #
     def setSpecfemCartParameters(self,typ,sid):
+        # read in the parameter file DATA/Par_file_ASKI
         try:
             Par_file_ASKI = inputParameter(os_path.join(IN_DATA_FILES_PATH,'Par_file_ASKI'))
         except:
@@ -524,7 +707,28 @@ class simulation:
         # remember current value of 'OVERWRITE_ASKI_OUTPUT' for this simulation
         self.overwrite_ASKI_output = Par_file_ASKI.lval('OVERWRITE_ASKI_OUTPUT')
         #
+        # read in the parameter file DATA/Par_file
+        try:
+            Par_file = inputParameter(os_path.join(IN_DATA_FILES_PATH,'Par_file'))
+        except:
+            self.log("   ERROR! could not create inputParameter object for Par_file '"+
+                     os_path.join(IN_DATA_FILES_PATH,'Par_file')+"\n")
+            raise 
+        noKeys = Par_file.keysNotPresent(['DT'])
+        if len(noKeys) > 0:
+            self.log("   ERROR! in setSpecfemCartParameters: the following keywords are required in Par_file '"+
+                     os_path.join(IN_DATA_FILES_PATH,'Par_file')+"':\n"+
+                     "   "+',  '.join(noKeys)+"\n")
+            raise Exception("missing keywords in Par_file; see logfile '"+logfile+"'")
+        #
+        # remember current value of 'DT' for this simulation, accounting for any possible fortran notation for exponentials
+        self.DT = float(Par_file.sval('DT').replace('D','e').replace('d','e'))
+        #
         # now, according to simulation type, set parameter files
+        #
+        ##########################
+        # typ=='displ':
+        ##########################
         if typ=='displ':
             slat = self.evlist.events[sid]['slat']
             slon = self.evlist.events[sid]['slon']
@@ -536,7 +740,7 @@ class simulation:
             self.outfile_base = os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_DISPLACEMENTS'),'kernel_displ_'+sid)
             self.log("   in setSpecfemCartParameters:\n"+
                      "      this is event evid = "+sid+"\n"+
-                     "      source lat,lon,depth = "+', '.join([slat,slon,sdepth])+"\n"+
+                     "      source lat (X), lon (Y), depth (Z) = "+', '.join([slat,slon,sdepth])+"\n"+
                      "      source type = "+styp+"\n")
             if int(styp) == 0 and self.evlist.events[sid].has_key('force'):
                 smag = self.evlist.events[sid]['mag']
@@ -552,29 +756,53 @@ class simulation:
                     # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
                     # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
                     # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
-                    setForcesolution(hdur='0.0',lat=slon,lon=slat,depth=sdepth,factor_force=smag,FE=Fx,FN=Fy,FUP=Fz)
+                    setForcesolution(hdur=str(5*self.DT),lat=slon,lon=slat,depth=sdepth,factor_force=smag,FE=Fx,FN=Fy,FUP=Fz)
                 except:
                     self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting FORCESOLUTION\n")
                     raise
             elif int(styp) == 1 and self.evlist.events[sid].has_key('momten'):
                 momten = self.evlist.events[sid]['momten']
-                self.log("      moment tensor =  "+'  '.join(momten)+"\n"+
+                momten_DynCm = Moment_tensor_Nm2DynCm(momten)
+                self.log("      moment tensor in Nm =  "+'  '.join(momten)+" (read from ASKI event list file)\n"+
+                         "      moment tensor in dyn*cm =  "+'  '.join(momten_DynCm)+" (write to SPECFEM CMTSOLUTION file)\n"+
                          "      nf,df = "+', '.join([nf,df])+"\n"+
                          "      frequency indices = "+jf+"\n"+
                          "      kernel displacement output file (basename) = '"+self.outfile_base+"'\n")
-                Mrr,Mtt,Mpp,Mrt,Mrp,Mtp = momten
+                Mrr,Mtt,Mpp,Mrt,Mrp,Mtp = momten_DynCm
                 USE_FORCE_POINT_SOURCE = '.false.'
                 try:
                     # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
                     # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
                     # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
-                    setCmtsolution(hdur='0.0',lat=slon,lon=slat,depth=sdepth,Mrr=Mrr,Mtt=Mtt,Mpp=Mpp,Mrt=Mrt,Mrp=Mrp,Mtp=Mtp)
+                    setCmtsolution(evname=sid,hdur=str(5*self.DT),lat=slon,lon=slat,depth=sdepth,Mrr=Mrr,Mtt=Mtt,Mpp=Mpp,Mrt=Mrt,Mrp=Mrp,Mtp=Mtp)
                 except:
                     self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting CMTSOLUTION\n")
                     raise
             else:
                 self.log("   ERROR! in setSpecfemCartParameters: source type is undefined (neither force nor moment tensor)\n")
                 raise Exception("source type is undefined")
+
+            if create_specfem_stations:
+                log_string = ("      the SPECFEM STATIONS file was created from the "+str(self.statlist.nstat)+" stations in ASKI's station list file")
+                # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
+                # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
+                # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
+                STATIONS_content = '\n'.join(['   '.join([self.statlist.stations[i]['staname'], self.statlist.stations[i]['netcode'], 
+                                                          self.statlist.stations[i]['lon'], self.statlist.stations[i]['lat'],
+                                                          '0.0', self.statlist.stations[i]['alt']
+                                                          ])
+                                              for i in range(self.statlist.nstat)
+                                              ])+'\n'
+                try:
+                    open(os_path.join(IN_DATA_FILES_PATH,'STATIONS'),'w').write(STATIONS_content)
+                except:
+                    self.log("   ERROR! in setSpecfemCartParameters: could not open STATIONS file '"+os_path.join(IN_DATA_FILES_PATH,'STATIONS')+
+                                    "' to write\n")
+                    raise
+                self.log(log_string+"\n")
+            else:
+                self.log("      the SPECFEM STATIONS file was not modified by this script, you should have set it yourself correctly\n")
+
             if os_path.exists(self.outfile_base+'_OUTPUT_FILES'):
                 if self.overwrite_ASKI_output:
                     self.log("      SPECFEM3D_Cartesian OUTPUT_FILES will be copied to '"+
@@ -587,6 +815,7 @@ class simulation:
             else:
                 self.log("      SPECFEM3D_Cartesian OUTPUT_FILES will be copied to '"+
                          self.outfile_base+'_OUTPUT_FILES'+"'.\n")
+
             try:
                 setParfile(os_path.join(IN_DATA_FILES_PATH,'Par_file'),
                            [('USE_FORCE_POINT_SOURCE',USE_FORCE_POINT_SOURCE),
@@ -607,15 +836,24 @@ class simulation:
             except:
                 self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting Par_file_ASKI\n")
                 raise
+        ##########################
+        # typ=='gt':
+        ##########################
         elif typ=='gt':
-            staname = sid[:-2]
-            comp = sid[-1:]
+            staname_comp = sid.split('_')
+            if len(staname_comp) != 2:
+                self.log("   ERROR! in setSpecfemCartParameters: simulation ID '"+sid+"' is invalid for simulation "+
+                         "type 'gt'. Must be of form 'stationname_component', where stationname MUST NOT contain '_' "+
+                         "characters!\n")
+                raise Exception("invalid simulation ID '"+sid+"' for Green tensor simulation")
+            staname = staname_comp[0]
+            comp = staname_comp[1]
             Fx=Fy=Fz='0.d0'
-            if comp == 'X':
+            if comp == 'CX':
                 Fx='1.d0'
-            elif comp == 'Y':
+            elif comp == 'CY':
                 Fy='1.d0'
-            elif comp == 'Z':
+            elif comp == 'CZ':
                 Fz='1.d0'
             nwname = self.statlist.stations[staname]['netcode']
             lat = self.statlist.stations[staname]['lat']
@@ -630,11 +868,33 @@ class simulation:
             self.outfile_base = os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_GREEN_TENSORS'),'kernel_gt_'+sid)
             self.log("   in setSpecfemCartParameters:\n"+
                      "      this is station stname,nwname = "+', '.join([staname,nwname])+"\n"+
-                     "      lat,lon,alt(=Z,used as depth value in FORCESOLUTION) = "+', '.join([lat,lon,alt])+"\n"+
+                     "      lat (X), lon (Y), alt (Z, used as depth value in FORCESOLUTION) = "+', '.join([lat,lon,alt])+"\n"+
                      "      green tensor component = "+comp+"\n"+
                      "      nf,df = "+', '.join([nf,df])+"\n"+
                      "      frequency indices = "+jf+"\n"+
                      "      kernel green tensor output file (basename) = '"+self.outfile_base+"'\n")
+
+            if create_specfem_stations:
+                log_string = ("      the SPECFEM STATIONS file was created from the "+str(self.statlist.nstat)+" stations in ASKI's station list file")
+                # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
+                # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
+                # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
+                STATIONS_content = '\n'.join(['   '.join([self.statlist.stations[i]['staname'], self.statlist.stations[i]['netcode'], 
+                                                          self.statlist.stations[i]['lon'], self.statlist.stations[i]['lat'],
+                                                          '0.0', self.statlist.stations[i]['alt']
+                                                          ])
+                                              for i in range(self.statlist.nstat)
+                                              ])+'\n'
+                try:
+                    open(os_path.join(IN_DATA_FILES_PATH,'STATIONS'),'w').write(STATIONS_content)
+                except:
+                    self.log("   ERROR! in setSpecfemCartParameters: could not open STATIONS file '"+os_path.join(IN_DATA_FILES_PATH,'STATIONS')+
+                                    "' to write\n")
+                    raise
+                self.log(log_string+"\n")
+            else:
+                self.log("      the SPECFEM STATIONS file was not modified by this script, you should have set it yourself correctly\n")
+
             if os_path.exists(self.outfile_base+'_OUTPUT_FILES'):
                 if self.overwrite_ASKI_output:
                     self.log("      SPECFEM3D_Cartesian OUTPUT_FILES will be copied to '"+
@@ -651,7 +911,7 @@ class simulation:
                 # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
                 # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
                 # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
-                setForcesolution(hdur='0.0',lat=lon,lon=lat,depth=alt,factor_force='1.d0',FE=Fx,FN=Fy,FUP=Fz)
+                setForcesolution(hdur=str(5*self.DT),lat=lon,lon=lat,depth=alt,factor_force='1.d0',FE=Fx,FN=Fy,FUP=Fz)
             except:
                 self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting FORCESOLUTION\n")
                 raise
@@ -674,6 +934,9 @@ class simulation:
             except:
                 self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting Par_file_ASKI\n")
                 raise
+        ##########################
+        # typ=='data':
+        ##########################
         elif typ=='data':
             slat = self.evlist.events[sid]['slat']
             slon = self.evlist.events[sid]['slon']
@@ -682,7 +945,7 @@ class simulation:
             self.outfile_base = (self.mparam.sval('PATH_MEASURED_DATA')+'data_'+sid)
             self.log("   in setSpecfemCartParameters:\n"+
                      "      this is event evid = "+sid+"\n"+
-                     "      source lat,lon,depth = "+', '.join([slat,slon,sdepth])+"\n"+
+                     "      source source lat (X), lon (Y), depth (Z) = "+', '.join([slat,slon,sdepth])+"\n"+
                      "      source type = "+styp+"\n")
             if int(styp) == 0 and self.evlist.events[sid].has_key('force'):
                 smag = self.evlist.events[sid]['mag']
@@ -695,7 +958,7 @@ class simulation:
                     # in case of data-simulations, do not touch hdur (so, if set manually previously, 
                     # you can use any source time function)
                     # BE AWARE, THAT IN CASE OF MIXED data/displ/gt SIMULATIONS, hdur WILL HAVE CHANGED
-                    # IN gt/displ SIMULATIONS TO 0.0 !!!
+                    # IN gt/displ SIMULATIONS TO 5*self.DT !!!
                     #
                     # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
                     # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
@@ -706,20 +969,43 @@ class simulation:
                     raise
             elif int(styp) == 1 and self.evlist.events[sid].has_key('momten'):
                 momten = self.evlist.events[sid]['momten']
-                self.log("      moment tensor =  "+'  '.join(momten)+"\n")
-                Mrr,Mtt,Mpp,Mrt,Mrp,Mtp = momten
-                USE_FORCE_POINT_SOURCE = '.false.'
+                self.log("      moment tensor in Nm =  "+'  '.join(momten)+" (read from ASKI event list file)\n")
+                momten_DynCm = Moment_tensor_Nm2DynCm(momten)
+                self.log("      moment tensor in dyn*cm =  "+'  '.join(momten_DynCm)+" (write to SPECFEM CMTSOLUTION file)\n")
+                Mrr,Mtt,Mpp,Mrt,Mrp,Mtp = momten_DynCm
                 try:
                     # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
                     # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
                     # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
-                    setCmtsolution(lat=slon,lon=slat,depth=sdepth,Mrr=Mrr,Mtt=Mtt,Mpp=Mpp,Mrt=Mrt,Mrp=Mrp,Mtp=Mtp)
+                    setCmtsolution(evname=sid,lat=slon,lon=slat,depth=sdepth,Mrr=Mrr,Mtt=Mtt,Mpp=Mpp,Mrt=Mrt,Mrp=Mrp,Mtp=Mtp)
                 except:
                     self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting CMTSOLUTION\n")
                     raise
             else:
                 self.log("   ERROR! in setSpecfemCartParameters: source type is undefined (neither force nor moment tensor)\n")
                 raise Exception("source type is undefined")
+
+            if create_specfem_stations:
+                log_string = ("      the SPECFEM STATIONS file was created from the "+str(self.statlist.nstat)+" stations in ASKI's station list file")
+                # BE AWARE! THAT IN SPECFEM THE FIRST (wavefield point) COORDINATE (x) IS LON, AND THE SECOND COORDINATE (y) IS LAT
+                # IN CARTESIAN ASKI APPLICATIONS, HOWEVER, THE FIRST (wavefield point) COORDINATE IS THE FIRST COLUMN ( = LAT) IN 
+                # EVENT- AND STATION LIST FILES, AND THE SECOND COORDINATE (column) IS LON, SO INTERCHANGE LAT AND LON HERE!!!
+                STATIONS_content = '\n'.join(['   '.join([self.statlist.stations[i]['staname'], self.statlist.stations[i]['netcode'], 
+                                                          self.statlist.stations[i]['lon'], self.statlist.stations[i]['lat'],
+                                                          '0.0', self.statlist.stations[i]['alt']
+                                                          ])
+                                              for i in range(self.statlist.nstat)
+                                              ])+'\n'
+                try:
+                    open(os_path.join(IN_DATA_FILES_PATH,'STATIONS'),'w').write(STATIONS_content)
+                except:
+                    self.log("   ERROR! in setSpecfemCartParameters: could not open STATIONS file '"+os_path.join(IN_DATA_FILES_PATH,'STATIONS')+
+                                    "' to write\n")
+                    raise
+                self.log(log_string+"\n")
+            else:
+                self.log("      the SPECFEM STATIONS file was not modified by this script, you should have set it yourself correctly\n")
+
             if os_path.exists(self.outfile_base+'_OUTPUT_FILES'):
                 if self.overwrite_ASKI_output:
                     self.log("      SPECFEM3D_Cartesian OUTPUT_FILES will be copied to '"+
@@ -750,7 +1036,7 @@ class simulation:
 #
 #-----------------------------------------------------------
 #
-    def check_process_sh(self,typ):
+    def check_if_simulation_was_successful(self,typ):
         # check if all binaries exist which should have been compiled correctly
         bin_list = ['bin/xdecompose_mesh','bin/xgenerate_databases','bin/xspecfem3D']
         bin_not_exist = [f for f in bin_list if not os_path.exists(f)]
@@ -807,9 +1093,9 @@ class simulation:
         if typ in ['displ','gt']:
             if not os_path.exists(os_path.join(OUTPUT_FILES_PATH,'LOG_ASKI_finish.txt')):
                 self.log("### ERROR : as there is no file 'LOG_ASKI_finish.txt' in '"+OUTPUT_FILES_PATH+"', "+
-                         "although this is type '"+typ+"', this suggests that no ASKI output was produced correctly\n")
+                         "although this is type '"+typ+"', this suggests that ASKI output was not produced correctly\n")
                 raise Exception("as there is no file 'LOG_ASKI_finish.txt' in '"+OUTPUT_FILES_PATH+"', "+
-                                "this suggests that no ASKI output was produced correctly")
+                                "this suggests that ASKI output was not produced correctly")
             lines_ASKI_finish = open(os_path.join(OUTPUT_FILES_PATH,'LOG_ASKI_finish.txt'),'r').readlines()
             if not any( ["successfully created ASKI output, as specified in 'LOG_ASKI_start.txt'" in line for line in lines_ASKI_finish] ):
                 self.log("### ERROR : file 'LOG_ASKI_finish.txt' in '"+OUTPUT_FILES_PATH+"', "+
@@ -834,6 +1120,16 @@ class simulation:
         self.log("   in copySpecfemCartOutput: calling \"os_system('cp "+os_path.join(OUTPUT_FILES_PATH,'*')+" "+
                  self.outfile_base+'_OUTPUT_FILES'+"')\"\n")
         os_system('cp '+os_path.join(OUTPUT_FILES_PATH,'*')+' '+self.outfile_base+'_OUTPUT_FILES')
+############################################################
+# END OF CLASS simulation
+############################################################
+#
+#
+#-----------------------------------------------------------
+#
+def Moment_tensor_Nm2DynCm(momten):
+    #return [  'e+'.join([ m.lower().split('e+')[0] , str(int(m.lower().split('e+')[1])+7) ])  for m in momten  ]
+    return [str(float(m)*1e+7) for m in momten]
 #
 #-----------------------------------------------------------
 #
@@ -870,7 +1166,7 @@ def setParfile(filename,keys_vals):
     # check if there are any keys which were not found on valid lines in the file
     if len(keys)>0:
         raise Exception("could not find the following parameters in parameter file '"+filename+"': "+
-                        "'"+"', '".join(noKeys)+"'")
+                        "'"+"', '".join(keys)+"'")
     #
     # if every key was found and the respective value was modified, write modified lines to file
     try:
@@ -889,11 +1185,11 @@ def setForcesolution(hdur=None,lat=None,lon=None,depth=None,factor_force=None,FE
                         "' to read")
     # now modify lines
     if hdur is not None:
-        lines[2] = lines[2].replace(lines[2].split('hdur:')[1].strip(),hdur)
+        lines[2] = lines[2].replace(lines[2].split('f0:')[1].strip(),hdur)
     if lat is not None:
-        lines[3] = lines[3].replace(lines[3].split('latitude:')[1].strip(),lat)
+        lines[3] = lines[3].replace(lines[3].split('latorUTM:')[1].strip(),lat)
     if lon is not None:
-        lines[4] = lines[4].replace(lines[4].split('longitude:')[1].strip(),lon)
+        lines[4] = lines[4].replace(lines[4].split('longorUTM:')[1].strip(),lon)
     if depth is not None:
         lines[5] = lines[5].replace(lines[5].split('depth:')[1].strip(),depth)
     if factor_force is not None:
@@ -913,7 +1209,7 @@ def setForcesolution(hdur=None,lat=None,lon=None,depth=None,factor_force=None,FE
 #
 #-----------------------------------------------------------
 #
-def setCmtsolution(hdur=None,lat=None,lon=None,depth=None,Mrr=None,Mtt=None,Mpp=None,Mrt=None,Mrp=None,Mtp=None):
+def setCmtsolution(evname=None,hdur=None,lat=None,lon=None,depth=None,Mrr=None,Mtt=None,Mpp=None,Mrt=None,Mrp=None,Mtp=None):
     # read lines of CMTSOLUTION file
     try:
         lines = open(os_path.join(IN_DATA_FILES_PATH,'CMTSOLUTION'),'r').readlines()
@@ -921,12 +1217,14 @@ def setCmtsolution(hdur=None,lat=None,lon=None,depth=None,Mrr=None,Mtt=None,Mpp=
         raise Exception("could not open CMTSOLUTION file '"+os_path.join(IN_DATA_FILES_PATH,'CMTSOLUTION')+
                         "' to read")
     # now modify lines
+    if evname is not None:
+        lines[1] = lines[1].replace(lines[1].split('event name:')[1].strip(),evname)
     if hdur is not None:
         lines[3] = lines[3].replace(lines[3].split('half duration:')[1].strip(),hdur)
     if lat is not None:
-        lines[4] = lines[4].replace(lines[4].split('latitude:')[1].strip(),lat)
+        lines[4] = lines[4].replace(lines[4].split('latorUTM:')[1].strip(),lat)
     if lon is not None:
-        lines[5] = lines[5].replace(lines[5].split('longitude:')[1].strip(),lon)
+        lines[5] = lines[5].replace(lines[5].split('longorUTM:')[1].strip(),lon)
     if depth is not None:
         lines[6] = lines[6].replace(lines[6].split('depth:')[1].strip(),depth)
     if Mrr is not None:
@@ -971,7 +1269,7 @@ def main():
     try:
         sm.iterate()
     except:
-        open(logfile,'a').write('### STOP --'+time_ctime()+
+        open(logfile,'a').write('\n\n### STOP --'+time_ctime()+
                                 '-- : there was an error iterating over the individual specfem3dCartesianForASKI simulations\n\n')
         if send_emails:
             sm.email_log('ERROR in one simulation')
@@ -988,9 +1286,3 @@ def main():
 #
 if __name__ == "__main__":
     main()
-#
-#-----------------------------------------------------------
-# qsub -l low -cwd -hard -q "low.q@minos18,low.q@minos19,low.q@minos20,low.q@minos21,low.q@minos22,low.q@minos23,low.q@minos24,low.q@minos25,low.q@minos26,low.q@minos27" -pe mpi-fu 108 run_specfem3dCartesianForASKI_simulations.py
-#
-# qsub -l low -cwd -hard -q "low.q@minos26,low.q@minos27" -masterq "low.q@minos27" -pe mpi-fu 96 run_specfem3dCartesianForASKI_simulations.py
-#-----------------------------------------------------------

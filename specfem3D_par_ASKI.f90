@@ -1,3 +1,24 @@
+!=====================================================================
+
+!----------------------------------------------------------------------------
+!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!
+!   module specfem_par_ASKI is part of ASKI version 1.0.
+!
+!   ASKI version 1.0 is free software: you can redistribute it and/or modify
+!   it under the terms of the GNU General Public License as published by
+!   the Free Software Foundation, either version 2 of the License, or
+!   (at your option) any later version.
+!
+!   ASKI version 1.0 is distributed in the hope that it will be useful,
+!   but WITHOUT ANY WARRANTY; without even the implied warranty of
+!   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!   GNU General Public License for more details.
+!
+!   You should have received a copy of the GNU General Public License
+!   along with ASKI version 1.0.  If not, see <http://www.gnu.org/licenses/>.
+!----------------------------------------------------------------------------
+
 module specfem_par_ASKI
 
 ! specific parameter module for ASKI extension package
@@ -11,6 +32,7 @@ module specfem_par_ASKI
   complex(kind=kind(1.d0)), dimension(:,:), allocatable :: ASKI_efactors_tapered !variable is also used in case there is no tapering!
   complex(kind=kind(1.d0)), dimension(:,:,:), allocatable :: ASKI_spectra_local_double
   complex, dimension(:,:,:), allocatable :: ASKI_spectra_local_single
+  logical :: ASKI_store_veloc
 
 ! content of Par_file_ASKI is following now:
 
@@ -24,6 +46,11 @@ module specfem_par_ASKI
 ! kernel displacement files) are produced
   logical :: COMPUTE_ASKI_OUTPUT
 
+! Decide, whether to ONLY produce the main ASKI output file (at the beginning of this simulation, filename 'ASKI_outfile.main') 
+! and then abort the simulation.
+! This can be useful if you want to first run initBasics to check the ASKI output volume and the background model etc.
+ logical :: ASKI_MAIN_FILE_ONLY
+
 ! choose to overwrite existing ASKI output files, or to abort if files already exist
   logical :: OVERWRITE_ASKI_OUTPUT
 
@@ -34,6 +61,9 @@ module specfem_par_ASKI
 ! id of ASKI output (e.g. eventID, station name plus component, etc.)
   integer, parameter :: length_ASKI_output_ID = 13
   character(len=length_ASKI_output_ID) :: ASKI_output_ID
+
+! flag which deconvolution of a source time function should be applied
+  logical :: ASKI_DECONVOLVE_STF
 
 !------------------------------------------------------------------------------------
 ! FREQUENCY DISCRETIZATION
@@ -127,3 +157,4 @@ module specfem_par_ASKI
   real :: ASKI_cz
 
 end module specfem_par_ASKI
+
