@@ -1,5 +1,5 @@
 %-----------------------------------------------------------------------------
-%   Copyright 2013 Florian Schumacher
+%   Copyright 2015 Florian Schumacher
 %
 %   This file is part of the SPECFEM3D_Cartesian_for_ASKI manual as a LaTeX 
 %   document with main file SPECFEM3D_Cartesian_for_ASKI_manual.tex
@@ -11,6 +11,19 @@
 %   A copy of the license is included in the section entitled ``GNU
 %   Free Documentation License''. 
 %-----------------------------------------------------------------------------
+%
+%#########################################################################
+% ATTENTION: THERE ARE STILL SEVERAL PROBLEMS TO COMPILE THIS DOCUMENT RESULTING
+% IN A LOT OF WARNINGS. YOU PROBABLY NEED TO COMPILE THIS DOCUMENT IN MODE 
+% ``nonstopmode'' by:
+% 
+% pdflatex \\nonstopmode\\input SPECFEM3D_Cartesian_for_ASKI_manual.tex
+% bibtex SPECFEM3D_Cartesian_for_ASKI_manual
+% pdflatex \\nonstopmode\\input SPECFEM3D_Cartesian_for_ASKI_manual.tex
+% pdflatex \\nonstopmode\\input SPECFEM3D_Cartesian_for_ASKI_manual.tex
+% pdflatex \\nonstopmode\\input SPECFEM3D_Cartesian_for_ASKI_manual.tex
+% 
+%#########################################################################
 %
 \documentclass[12pt,a4paper]{article}
 
@@ -97,7 +110,7 @@
 \begin{document}
 %
 \setlength{\parindent}{0cm}
-\addtolength{\parskip}{0.1cm}
+\addtolength{\parskip}{0.5em}
 % TeX’s first attempt at breaking lines is performed without even trying hyphenation: 
 % TeX sets its “tolerance” of line breaking oddities to the internal value \pretolerance
 % an “infinite” tolerance is represented by the value 10000, but may lead to very bad line breaks indeed!
@@ -109,19 +122,19 @@
 % without \usepackage[affil-it]{authblk} e.g.:
 %\author{Florian Schumacher \thanks{\texttt{florian.schumacher@rub.de}; corresponding author} \and Wolfgang Friederich \thanks{\texttt{wolfgang.friederich@rub.de}}}
 %
-\title{Using {\tt \Huge SPECFEM3D\_Cartesian-2.1} for \\ \tt {\Huge ASKI} {\rm--} {\Huge A}{\large nalysis of} {\Huge S}{\large ensitivity \\ and} {\Huge\tt K}{\large ernel} {\Huge\tt I}{\large nversion, version 0.3} }
+\title{Using {\tt \Huge SPECFEM3D\_Cartesian-3.0} for \\ \tt {\Huge ASKI} {\rm--} {\Huge A}{\large nalysis of} {\Huge S}{\large ensitivity \\ and} {\Huge\tt K}{\large ernel} {\Huge\tt I}{\large nversion, version 1.0} }
 %\author[1]{Florian Schumacher \thanks{\texttt{florian.schumacher@email.address}; corresponding author}}
 \author[1]{Florian Schumacher}
-\author[1]{Wolfgang Friederich}
+%\author[1]{Wolfgang Friederich}
 \affil[1]{Ruhr-Universit\"at Bochum} % for this you need \usepackage[affil-it]{authblk}
-\date{\today}
+\date{December 2015}
 %\date{6.12.2004}
 %\date{} % no date
 \maketitle
 %
 %-------------------------------
 % LICENSE
-Copyright \copyright 2013 Florian Schumacher.
+Copyright \copyright 2015 Florian Schumacher.
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
 or any later version published by the Free Software Foundation;
@@ -132,19 +145,24 @@ Free Documentation License''.
 \vspace{1cm}
 
 This documentation was written in the hope that it will be useful to the user,
-but it \emph{cannot be assured} that it is accurate in every respect or complete in any sense.\\
-Please do not hesitate to improve this documentation by incorporating your experiences with 
-\lcode{SPECFEM3D for ASKI} and your personal experience of getting used to it. 
+but it \emph{cannot be assured} that it is accurate in every respect or complete in any sense.
+In fact, at some places \emph{this manual is work in progress}.\\
+lease do not hesitate to report any inconsistencies via \url{http://www.rub.de/aski} or
+to improve this documentation by incorporating your experiences with \lcode{SPECFEM3D for ASKI} 
+and your personal experience of getting used to it (plus, let us know about it! Thanks). 
 
-Furthermore, my moderate experience with \LaTeX may well give rise to improving the document 
+I am aware of the poor \LaTeX coding of this document. There is a lot of potential
+to improve the document 
 style, hence the readability of the manual as a whole, as well as the coding style of the 
-\lcode{.tex} file. 
+particular \lcode{.tex} files. \emph{Please do not hesitate to improve!}
 
-The \LaTeX source files and all related components of this document are contained in the 
-\lcode{SPECFEM3D_Cartesian-2.1 for ASKI 0.3} package, available via \url{http://www.rub.de/ASKI}
+The \LaTeX source files and all related components of this document are available via\\
+\url{http://www.rub.de/aski}
 \begin{flushright}
-Florian Schumacher, 2013
+Florian Schumacher, Dec 2015
 \end{flushright}
+
+\newpage
 %
 %-------------------------------
 % SECTION Introduction
@@ -152,21 +170,22 @@ Florian Schumacher, 2013
 \section*{Guide Through This Manual}
 %#############################################################
 %
-We assume that you have sufficient knowledge of how to run the regular \lcode{SPECFEM3D_Cartesian} code.
+We assume that you have sufficient knowledge of how to run the regular \lcode{SPECFEM3D_Cartesian} software.
 
-For details on how to extend the regularly installed \lcode{SPECFEM3D_Cartesian-2.1} code to produce
-output for \ASKI, please read section~\ref{extent_to_ASKI}.
+For details on how to get started by installing everything required for using \lcode{SPECFEM3D_Cartesian} 
+with \ASKI, refer to section~\ref{install}{}. 
 
 Before you start using the code to produce output for \ASKI, please consider the general
 comments in section~\ref{general_stuff}.
 
-If you are going to use the automated python script \\ \lcode{run_specfem3dCartesianForASKI_simulations.py} 
-then please start reading section~\ref{use_script}. 
+If you are planning to compute a lot of kernels for source-receiver paths (e.g.\ doing full waveform inversion) 
+it makes sense to use the automated python script \\ \lcode{run_specfem3dCartesianForASKI_simulations.py} 
+which conducts a lot of simulations in an automated fashion. Please read section~\ref{use_script}. 
 
-If you want to conduct one single simulation producing some output for \ASKI, please start 
-reading section~\ref{no_script}.
+If you want to conduct one single simulation producing output for \ASKI, please 
+read section~\ref{no_script}.
 
-Section~\ref{file_Par_file_ASKI} is intened to be used as a reference section only.
+Section~\ref{file_Par_file_ASKI} is intended to be used as a reference section only.
 
 Bracketed comments starting with ``{\bf TODO IN THE FUTURE:}'' are intended to mark ideas for future work. 
 So please ignore if you are just applying the code.
@@ -178,30 +197,182 @@ So please ignore if you are just applying the code.
 \newpage
 %
 %-------------------------------
+% SECTION Install, get startet
+%#############################################################
+\section{Installation and Getting Started} \label{install}
+%#############################################################
+%
+This section explains how to install the \lcode{SPECFEM3D_Cartesian} software 
+(\url{http://geodynamics.org/cig/software/specfem3d})
+in order to be used as a forward method for \ASKI. 
+In general, a regularly installed \lcode{SPECFEM3D_Cartesian} version is extended by certain few modifications 
+so it can produce output for \ASKI. So, \lcode{SPECFEM3D_Cartesian for ASKI} basically has the same requirements 
+and dependencies as the \lcode{SPECFEM3D_Cartesian} code, except that it needs a bit more memory and weigh more 
+disc space for output. \emph{Load balancing might not be perfect anymore!!} You should, therefore, have sufficient 
+knowledge of how to run the regular \lcode{SPECFEM3D_Cartesian} software. 
+
+%-------------------------------------
+\subsection{Requirements} %\label{}
+%-------------------------------------
+\begin{enumerate}
+\item You need a functioning installation of the \lcode{SPECFEM3D_Cartesian} code, including 
+   modifications for usage with \ASKI:
+   \begin{itemize}
+   \item You can either download and install the modified \lcode{SPECFEM3D} version \\
+   \lcode{SPECFEM3D_Cartesian_git_master_2015-11-07_extended_for_ASKI.tar.gz}, available via 
+   \url{http://www.rub.de/aski}, which already includes modifications for \ASKI (see section~\ref{use_modified_SPECFEM}{}),
+ \item or use your running installation of \lcode{SPECFEM3D_Cartesian} and extend it for usage 
+   with \ASKI, as described below in section~\ref{extent_to_ASKI}{}.
+   \end{itemize}
+   In \emph{both} cases you must install the package \lcode{SPECFEM3D_Cartesian_for_ASKI_1.0.tar.gz}!
+
+ \item You need basic experience in using the regular \lcode{SPECFEM3D_Cartesian} software!
+ \item Also you require an installation of the \ASKI \lcode{1.0} main package (available via 
+   \url{http://www.rub.de/aski}). The \ASKI installation directory will be referred to 
+   below as \lcode{ASKI_1.0/}
+\end{enumerate}
+
+%-------------------------------------
+\subsection{Download and Extract \lcodetitle{tar} ball} %\label{}
+%-------------------------------------
+You must download the tar ball
+\lcode{SPECFEM3D_Cartesian_for_ASKI_1.0.tar.gz}
+from \url{http://www.rub.de/aski}. Please extract it in such a way, that the directory 
+\lcode{SPECFEM3D_Cartesian_for_ASKI} is contained in the \ASKI installation directory 
+\lcode{ASKI_1.0/}
+
+%-------------------------------------
+\subsection{Installation} %\label{}
+%-------------------------------------
+You need to compile few more \ASKI binaries following these step:
+\begin{itemize}
+\item In \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/Makefile} , set \lcode{COMPILER} appropriately, 
+   adjust \lcode{FFLAGS} if required and set the variables \lcode{BLAS, LAPACK}, just as you did 
+   in \lcode{ASKI_1.0/Makefile} when installing main package \lcode{ASKI_1.0}
+\item 
+ Issue the command \lcode{make all} from directory \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/}
+\end{itemize}
+After that, \\\lcode{ASKI_1.0/bin} should contain the new binaries.
+
+%-------------------------------------
+\subsection{Using Already Extended Extract of \lcodetitle{SPECFEM3D\_Cartesian-3.0} Code} \label{use_modified_SPECFEM}
+%-------------------------------------
+Download \lcode{SPECFEM3D_Cartesian_git_master_2015-11-07_extended_for_ASKI.tar.gz}, available via 
+\url{http://www.rub.de/aski}. This is a very basic extract of the git release of \lcode{SPECFEM3D_Cartesian} 
+version \lcode{3.0} from git repository \url{https://github.com/geodynamics/specfem3d} (master branch) by
+2015 November 7. Some folders like utils, doc etc.\ were removed to keep this copy small.
+Additionally, two important modifications were applied, which were commited
+to the devel branch on 3 September 2015, or are about to be commited by the 
+developers team  (see comments by "\lcode{FS FS}"):
+\begin{itemize}
+\item in \lcode{src/specfem3D/setup_sources_receivers.f90} , subroutine \lcode{setup_sources()}, l.180 :\\
+   removing \lcode{USE_FORCE_POINT_SOURCE .or.} from the if-clause, i.e.\ execute
+   (re)definition of \lcode{t0} only in case of \lcode{USE_RICKER_TIME_FUNCTION == .true.}
+ \item in \lcode{src/specfem3D/compute_add_sources_viscoelastic.f90} :\\
+   always call function \lcode{comp_source_time_function_gauss()} with half duration
+   \lcode{hdur_gaussian(isource)} instead of fixed value of \lcode{5.d0*DT}
+\end{itemize}
+
+Extract the \lcode{tar} ball somewhere and re-configure and compile the software on your system according 
+to the compilers you are using etc., e.g.\ by issuing the following commands from the installation directory:\\
+\lcode{> ./configure FC=gfortran MPIFC=mpif90}\\
+\lcode{> make default}
+
+
+%-------------------------------------
+\subsection{Extend Your Own \lcodetitle{SPECFEM3D\_Cartesian-3.0} code to produce output for \ASKI} \label{extent_to_ASKI}
+%-------------------------------------
+You can use your own running installation of \lcode{SPECFEM3D_Cartesian} and extend it in the following way
+for usage with \ASKI, provided it has the required functionality. 
+This procedure was tested for \lcode{SPECFEM3D_Cartesian} git master by 2015 Nov 7, 
+extended by the two modifications described above in section~\ref{use_modified_SPECFEM}{}:
+\begin{enumerate}
+\item install \lcode{SPECFEM3D_Cartesian} on your system and make it run, gain 
+   experience in using it (below, the installation path is refered to as 
+   \lcode{SPECFEM3D/}).
+
+\item Copy file \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/specfem3D_for_ASKI.f90} to 
+   \lcode{SPECFEM3D/src/specfem3D/}
+
+\item Replace file \lcode{SPECFEM3D/src/generate_databases/model_external_values.f90} by 
+   \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/model_external_values.f90}
+
+\item Append content of file \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/parallel_ASKI.f90}
+   to file \lcode{SPECFEM3D/src/shared/parallel.f90}
+
+\item Append content of file \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/specfem3D_par_ASKI.f90}
+   to file \lcode{SPECFEM3D/src/specfem3D/specfem3D_par.f90}
+
+\item In \lcode{SPECFEM3D/src/specfem3D/rules.mk} : add the following line into the 
+   definition of \lcode{specfem3D_OBJECTS} (e.g.\ before line with \lcode{$(EMPTY_MACRO)})\\
+\lcode{[tab_character]$O/specfem3D_for_ASKI.spec.o \ }\\
+   (be aware that the above line \emph{must} start with an actual TAB character in order 
+   to conform to the GNU-make syntax)
+
+\item In \lcode{SPECFEM3D/src/specfem3D/prepare_timerun.F90} in subroutine \lcode{prepare_timerun} :\\
+   add the following line at the end of the subroutine, before the statistics 
+   output is written to main output file by rank 0:\\
+   \lcode{call prepare_timerun_ASKI()}
+
+\item In \lcode{SPECFEM3D/src/specfem3D/iterate_time.F90} in subroutine \lcode{iterate_time} :\\
+   add the following line just before the "enddo" of the time loop\\
+   \lcode{call write_ASKI_output()}
+
+\item In \lcode{SPECFEM3D/src/specfem3D/finalize_simulation.f90} in subroutine \lcode{finalize_simulation} :\\
+   add the following line just before the main output file is closed at the end of the subroutine\\
+   \lcode{call save_ASKI_output()}
+
+\item Set \lcode{USE_SOURCES_RECVS_Z = .true.} in \lcode{SPECFEM3D/setup/constants.h} (or wherever 
+   your file constants.h is located).
+
+\item Recompile all \lcode{SPECFEM3D} binaries, possibly by issuing \lcode{make} in directory \lcode{SPECFEM3D/}
+
+\item In order to produce \ASKI output in \lcode{SPECFEM3D} simulations, copy file 
+    \lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/Par_file_ASKI} to your respective \lcode{DATA/} path
+    (which is e.g.\ \lcode{SPECFEM3D/EXAMPLES/my_example/DATA/} , or \lcode{SPECFEM3D/DATA/} ). This 
+    file must be adjusted for any specific simulation (just as all other parameter files), 
+    refer to documentation or examples on how to use it.
+
+\end{enumerate}
+
+If you have a newer version of \lcode{SPECFEM3D_Cartesian} which does not work with \ASKI as thus described, we
+are happy to hear about it. Please feel free to get in touch with the \ASKI developers (via
+\url{http://www.rub.de/aski}). 
+
+%
+%-------------------------------
 % SECTION General things
 %#############################################################
-\section{General Stuff to Consider} \label{general_stuff}
+\section{General Things to Consider} \label{general_stuff}
 %#############################################################
 %
 \begin{itemize}
 \item parameters \lcode{FILE_KERNEL_REFERENCE_MODEL} and \lcode{FILE_WAVEFIELD_POINTS} 
   of the parameter file for a specific iteration step must be set to some main \ASKI output file,
   which is the basefile name of \lcode{ASKI_outfile} extendet by \lcode{.main}, see \ref{Par_file_ASKI,sub:output}.
-  Use the main \ASKI output file of some arbitrary \ASKI output, e.g.\ the kernel displacement output of the first source.
-\item As there is a fixed order assumed of \ASKI wavefield points (by procs and local element numbering), the 
-  computation of many kernels (e.g.\ for many seismic paths in an inversion) can only be consistent, if the 
+  Use the main \ASKI output file of some arbitrary \ASKI output, e.g.\ the kernel displacement output of the first source
+  or some kernel green tensor output.
+\item As there is a fixed order assumed of the \ASKI wavefield points (by procs and local element numbering), the 
+  computation of many kernels (e.g.\ for many source-receiver paths in an inversion) can only be consistent, if the 
   \emph{same} mesh decomposition and the \emph{same} number of procs is used at all times 
   (for those kernels you want to use together, e.g.\ all kernels in your specific iteration step of an inversion).
   It may, hence, be sensible to use the same MPI Databases for all \lcode{SPECFEM3D for ASKI} simulations (adjust your 
   script \lcode{process.sh} in such a way, that you do not always recompile and decompose MESH, but only call the solver
-  again (with changed parameter files and source files).
-\item there is (probably?!) no proper support for multiple sources in case of producing output for \ASKI.
-\item Green tensor simulations are done using  value \lcode{ALT} in the station definition as the 
+  again, with changed parameter files and source files).
+\item Green tensor simulations are done using the third coordinate in the station definition as the 
   \lcode{FORCESOLUTION} \lcode{depth} value, in order to allow receivers to be located not only on the surface.
-  It, hence, may be sensible to throughoutly use \lcode{USE_SOURCES_RECVS_Z = .true.} in \lcode{SPECFEM3D/src/shared/constants.h}.
-\item As the coordinates of wavefield points (and, hence, inversion grid coordinates) \lcode{SPECFEM3D for ASKI} uses:\\
+  It, hence, is strongly recommended to throughoutly use \lcode{USE_SOURCES_RECVS_Z = .true.} in \lcode{SPECFEM3D/setup/constants.h}.
+\item When using the provided \lcode{SPECFEM3D} version
+  \lcode{SPECFEM3D_Cartesian_git_master_2015-11-07_extended_for_ASKI.tar.gz}, or using file \lcode{model_external_values.f90}
+  as provided by package \lcode{SPECFEM3D_Cartesian_for_ASKI_1.0.tar.gz}, the functionality controled by 
+  flag \lcode{COUPLE_WITH_EXTERNAL_CODE} does not work anymore, so \lcode{COUPLE_WITH_EXTERNAL_CODE} should be switched
+  to \lcode{.false.} in \lcode{Par_file}. If you want to produce \ASKI output with \lcode{COUPLE_WITH_EXTERNAL_CODE}
+  switched on, you need to incorporate the coupling funktionality into \lcode{model_external_values.f90}.
+\item As coordinates of wavefield points (and, hence, inversion grid coordinates) \\
+  \lcode{SPECFEM3D for ASKI} uses:\\
   First coordinate = \lcode{X}, second coordinate = \lcode{Y}, third coordinate = \lcode{Z}.
-\item \dots
+\item You must use \lcode{PRINT_SOURCE_TIME_FUNCTION = .true.} in the SPECFEM3D \lcode{Par_file} in order to ensure correct
+  functionality (relevant for cases \lcode{ASKI_DECONVOLVE_STF = .true.} in \lcode{Par_file_ASKI}).
 \end{itemize}
 %
 %-------------------------------
@@ -220,9 +391,9 @@ and \lcode{STATIONS} (standard \lcode{SPECFEM3D} functionality; only if you want
 Additionally, you need to set file \lcode{Par_file_ASKI} to desired values. The file is described 
 in detail in section~\ref{file_Par_file_ASKI}. 
 
-After that, you are ready to run the code. As there is no \ASKI dependent change of \lcode{SPECFEM3D} 
-components which are sensitive to compiling, you do not need to recompile the \lcode{SPECFEM3D} code every time you
-run a \lcode{SPECFEM3D} simulation for \ASKI.
+After that, you are ready to run the code. Since all relevant information for producing \ASKI output 
+are read on runtime, you do not need to recompile the \lcode{SPECFEM3D} code every time you
+run a \lcode{SPECFEM3D} simulation for \ASKI, you just need to set the above listet parameter files.
 %
 %-------------------------------
 % SECTION using python script
@@ -234,24 +405,27 @@ As usual, you need to do (external or internal) meshing for the appropriate (cur
 See section \ref{import_model} for details on how to import the current model of an inverision (the model of the last
 iteration step) into \lcode{SPECFEM3D}.
 
-Python script \lcode{run_specfem3dCartesianForASKI_simulations.py} conducts the specified 
-kernel simulations (as described inside the script on the top) by iteratively running 
-\lcode{SPECFEM3D} simulations, using appropriate settings of the parameter files for each iteration. \\
-You need to edit the first lines of the script (above definition of \lcode{class simulation}) and set 
-all variables defined there to appropriate values, as described in the comments in the script 
+Python script \lcode{run_specfem3dCartesianForASKI_simulations.py} (provided in directory 
+\lcode{SPECFEM3D_Cartesian_for_ASKI}) conducts the specified 
+kernel simulations (as described inside the script on the top) by running 
+\lcode{SPECFEM3D} simulations one after another, setting all parameter files before each simulation appropriately.
+You need to edit the first lines of the script 
+and set all variables defined there to appropriate values, as described in the comments in the script 
+
 ({\bf TODO IN THE FUTURE:} maybe it is better to have an input (file?) mechanism to this script. But then: more
 overhead/extra requirements (packages, arguments handling) to cope with on cluster machines \dots)
 
-The python script may not be suitable for the HPC system you are using! If you are not able to adapt 
+The python script may not be suitable for the HPC system you are using. If you are not able to adapt 
 it in a way which makes it possible to be used, you might have to figure out an analogous way yourself 
 how to perform the tasks done by this script.
 
 In case of using the provided python script \lcode{run_specfem3dCartesianForASKI_simulations.py},
 some parameters in \lcode{SPECFEM3D} files \lcode{CMTSOLUTION}, \lcode{FORCESOLUTION}, \lcode{Par_file} 
-and in file \lcode{Par_file_ASKI} are automatically changed, while the script iteratively conducts 
-\lcode{SPECFEM3D} simulations. \\
+and in file \lcode{Par_file_ASKI} are automatically changed, while the script conducts the
+\lcode{SPECFEM3D} simulations one after another.
+
 In the following, only those parameters/lines are listed, which, if necessary, need to be set 
-manually before running this python script. All other parameters are set by the script.
+\emph{manually} before running this python script. All other parameters are set by the script.
 
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{Manually Setting \lcodetitle{Par\_file\_ASKI}}
@@ -259,80 +433,156 @@ manually before running this python script. All other parameters are set by the 
 The following \lcode{Par_file_ASKI} parameters need to be set manually before running the python script, 
 since they are not changed/set by the script.
 \begin{itemize}
+\item \lcode{USE_ASKI_BACKGROUND_MODEL,FILE_ASKI_BACKGROUND_MODEL}
+\item \lcode{IMPOSE_ASKI_INVERTED_MODEL,FILE_ASKI_INVERTED_MODEL}
+\item \lcode{ASKI_INVERTED_MODEL_INTERPOLATION_TYPE,ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS}
+\item \lcode{ASKI_MAIN_FILE_ONLY} (must be set to \lcode{.false.}!)
 \item \lcode{OVERWRITE_ASKI_OUTPUT}
 \item \lcode{ASKI_DFT_double}
 \item \lcode{ASKI_DFT_apply_taper,ASKI_DFT_taper_percentage}
-\item in case of \lcode{define_ASKI_output_volume_by_inversion_grid = False}, you need to manually set
-  all parameters concerning the inversion grid, i.e.\ \lcode{ASKI_type_inversion_grid}, 
+\item in case of \lcode{define_ASKI_output_volume_by_inversion_grid = False} in the python script, 
+  you need to manually set all parameters concerning the inversion grid, i.e.\ \lcode{ASKI_type_inversion_grid}, 
   \lcode{ASKI_(cw)(xyz)}, \lcode{ASKI_rot_(XYZ)}
 \end{itemize}
+\emph{It is important to notice}, that so far there is no support to do ``displ'' simulations (i.e.\ producing
+kernel displacement output) with preventing the python script from setting \lcode{ASKI_DECONVOLVE_STF = .true.}. 
+This does not allow, e.g.\ to directly use a Ricker wavelet for simulations of type ``displ''.
+You will always need to provide your source wavelet as event filters in \ASKI (produce such a filter e.g.\ 
+using the executable \lcode{createSpecfem3dFilters} \myaref{createSpecfem3dFilters}).
+
+({\bf TODO IN THE FUTURE:} Allow for using Ricker wavelet for simulations of type ``displ'')
+
 %
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{Manually Setting \lcodetitle{FORCESOLUTION}}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 %
-The python script \emph{always} automatically sets ``latitude:'', ``longitude:'', ``depth:'', 
+The python script \emph{always} automatically sets ``latorUTM:'', ``longorUTM:'', ``depth:'', 
 ``factor force source:'', ``component dir vect source E:'', ``component dir vect source N:'', 
-``component dir vect source Z\_UP:''. In case of displ and gt simulations, additionally ``hdur:'' is set to ``0.''. 
-So, if you wish to do a data simulation for single force sources, using a different ``hdur:'' value, you 
+``component dir vect source Z\_UP:''. In case of ``displ'' and ``gt'' simulations, additionally ``f0:'' 
+is set to $5\times DT$.
+So, if you wish to do a data simulation for single force sources, using a different ``f0:'' value, you 
 should conduct those in a separate run of the python script.
 %
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{Manually Setting \lcodetitle{CMTSOLUTION}}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 %
-The python script \emph{always} automatically sets ``latitude:'', ``longitude:'', ``depth:'', 
-``Mrr:'', ``Mtt:'', ``Mpp:'', ``Mrt:'', ``Mrp:'', ``Mtp:''. In case of displ and simulations, additionally 
-``half duration:'' is set to ``0.''. So, if you wish to do a data simulation for single force sources, 
+The python script \emph{always} automatically sets ``latorUTM:'', ``longorUTM:'', ``depth:'', 
+``Mrr:'', ``Mtt:'', ``Mpp:'', ``Mrt:'', ``Mrp:'', ``Mtp:''. In case of ``displ'' simulations, additionally 
+``half duration:'' is set to ``0.''. So, if you wish to do a data simulation for moment tensor sources 
 using a different ``half duration:'' value, you should conduct those in a separate run of the python script.
 %
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{Manually Setting \lcodetitle{STATIONS}}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 %
+In the upper part of the python script, the flag \lcode{create_specfem_stations} can be set to \lcode{True}.
+In this case, the \lcode{SPECFEM3D} \lcode{STATIONS} file is automatically generated from the 
+\ASKI file \lcode{FILE_STATION_LIST}.
+
+If you do not use this flag to automatically generate the \lcode{SPECFEM3D} \lcode{STATIONS} file,
+you must provide it manually.
 The standard \lcode{SPECFEM3D} \lcode{STATIONS} file should contain the definition of stations as
-in the \ASKI file \lcode{file_stations_list}, in consistend \lcode{SPECFEM3D} notation, i.e.\ coordinate
-columns being lat ( = Y, third column of \lcode{STATIONS} and fourth column of \lcode{file_stations_list}) and 
-lon ( = X, fourth column of \lcode{STATIONS} and third column of \lcode{file_stations_list}) and 
-elev ( = Z, sixth column of \lcode{STATIONS} and fifth column of \lcode{file_stations_list}). 
+in the \ASKI file \lcode{FILE_STATION_LIST}, in consistend \lcode{SPECFEM3D} notation, i.e.\ coordinate
+columns being lat ( = Y, third column of \lcode{STATIONS} and fourth column of \lcode{FILE_STATION_LIST}) and 
+lon ( = X, fourth column of \lcode{STATIONS} and third column of \lcode{FILE_STATION_LIST}) and 
+elev ( = Z, sixth column of \lcode{STATIONS} and fifth column of \lcode{FILE_STATION_LIST}). 
 
 You must also assure to use the very same station names and network codes in file \lcode{STATIONS} as in 
-\ASKI file \lcode{file_stations_list}!
+\ASKI file \lcode{FILE_STATION_LIST}!
 %
 %-------------------------------
 % SECTION importing an external model
 %#############################################################
-\section{Importing the currently inverted model for next iteration step} \label{import_model}
+\section{Importing external models into \lcodetitle{SPECFEM3D}, e.g.\ simple background model or currently inverted model for next iteration step} \label{import_model}
 %#############################################################
 %
-Exported \lcode{.kim} files (as produced by \ASKI program \lcode{exportKim}) may be read used as a model by 
-\lcode{SPECFEM3D for ASKI}, as explained in the following:
+There are two types of external models that can be put (in combination) into \lcode{SPECFEM3D}, 
+using a special implementation of the \lcode{SPECFEM3D} module \lcode{model_external_values}:
 
-The model values defined by the kernel inverted model will be \emph{superimposed} onto the \lcode{SPECFEM3D} 
-default model values as defined by e.g.\ \lcode{Cubit}, using a special implementation of the \lcode{SPECFEM3D} 
-module \lcode{model_external_values}.
+Simple 1D layered gradient background models can overwrite the default background model (coming from the mesher, e.g.\ \lcode{Trelis}).
+Exported \lcode{.kim} files (as produced by \ASKI program \lcode{exportKim} with option \lcode{-otxt}) may be 
+superimposed onto the background model (default \lcode{Trelis} model or \ASKI 1D background model) and used as a model for
+the new iteration of full waveform inversion of \ASKI. 
 
-Set \lcode{MODEL = external} in \lcode{Par_file}. Then directory \lcode{DATA} must contain a file
-named \lcode{model_external_ASKI} which must contain 3 lines:
-\begin{itemize}
-\item[line 1] \emph{interpolation type:}\\
-  The first line may be of the following formats:
-  \begin{itemize}
-  \item \lcode{shepard_standard}
-    meaning that a standard inverse distance interpolation, respecting for direction of neighbours, after Shepard
-    is used to interpolate model values from the inversion grid cell centers onto the new \lcode{SPECFEM3D} GLL points.
-    The radii of the inversion grid cells are used to decide whether a GLL point is in range of an inversion grid cell
-    or not.
-  \item \lcode{shepard_factor_radius  FACTOR}
-    whereby \lcode{FACTOR} is a factor to be applied to the inversion grid cell radii before applying the same
-    interpolation method as in case \lcode{shepard_standard}.
-  \end{itemize}
-\item[line 2] \emph{model file type:}\\
-  only \lcode{kim_export} supported by now, meaning that the file given in line 3 must be an exported \lcode{.kim} file
-  as produced by \ASKI program \lcode{exportKim}.
-\item[line 3] \emph{name of model file:}\\
-  name of model file of type as defined in line 2, which is expected to be in directory \lcode{DATA}
-\end{itemize}
+These two types of external modesl are explained in the following.
+To be able to use \emph{any} of the two (or both in combination), you \emph{must} set \lcode{MODEL = external} in \lcode{Par_file} !
+
+%-------------------------------------
+\subsection{Overwrite background model by simple 1D layered gradient model} \label{import_model:ssec_1D}
+%-------------------------------------
+The logical flag \lcode{USE_ASKI_BACKGROUND_MODEL} in \lcode{Par_file_ASKI} indicates whether 
+\lcode{SPECFEM3D_Cartesian} should use the 1D reference model as defined in the text file with name given by 
+\lcode{FILE_ASKI_BACKGROUND_MODEL} , relative to \lcode{DATA/} .
+This mode will overwrite model values on all GLL points, dependent on depth (or rather Z). 
+\emph{A model like this will nott affect the meshing of spectral elements or any internal boundaries created
+by the meshing process!}
+
+The 1D model is defined by a list of model values at given deph nodes between which a spline interpolation 
+is done. 
+A template of such a background model file, containing documenting commentary, is given by file 
+\lcode{SPECFEM3D_Cartesian_for_ASKI/ASKI_background_model_template}.
+The specific format of this text file is described now in the following:
+
+{\bf the first line} is ignored, this line may contain a short description of the model or can be empty.
+
+{\bf the second line} contains one real value defining the maximum Z value $z_\text{max}$ of the model domain
+(since internally, Z values are processed and there is no knowledge about ``depth'', hence the Z-value 
+of the following depth nodes are computed as $z_\text{node} = z_\text{max} - \text{depth}_\text{node}$).
+
+{\bf the third and fourth line} simply define the characteristics of the depth nodes which are defined 
+in the table (for convenience when reading the file by the program):\\
+The third line must contain the number of layers, between which discontinuities are allowed in the 1D model. 
+At the boundary of any two layers, there should be a ``double node'', i.e.\ two lines with \emph{same} depth. 
+There is no spline interpolation done accross any layer boundaries, i.e.\ over any double node. 
+Different model values on either side of a double node will be interpreted as a discontinuity in the model. 
+You can also set the same model value on either side of a double node, e.g.\ if you want to have a half space
+of the same model values as a gradient coming from above, etc.\\
+The fourth line contains as many integer values (separated by white space) as there are layers 
+(as defined by line three) and gives for each layer the number of nodes. 
+amust contain the number of nodes inside each layer. 
+
+{\bf starting from line 4}, each line defines a depth node giving (isotropic) model values at this depth.
+The columns are separated by white space and assume the meaning:\\
+depth [m] \ \ \ \ \ density [Kg/m\textsuperscript{3}] \ \ \ \ \ vp [m/s] \ \ \ \ \ vs [m/s] \ \ \ \ \ Qmu \ \ \ \ \ Qkappa\\
+The depth is assumed to be monotonically \emph{increasing}, the first line should have depth 0. 
+
+{\bf Everything below} the expected number of lines is ignored, so you can also add commentary below the
+model definition.
+
+
+
+% describe the format of the file ASKI background model!
+
+%-------------------------------------
+\subsection{Impose exported \lcodetitle{.kim} model onto background model} \label{import_model:ssec_kim_export}
+%-------------------------------------
+This functionality is controled by logical flag \lcode{IMPOSE_ASKI_INVERTED_MODEL} along with
+the parameters \lcode{FILE_ASKI_INVERTED_MODEL, ASKI_INVERTED_MODEL_INTERPOLATION_TYPE, 
+ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS} in \lcode{Par_file_ASKI}.
+
+\lcode{FILE_ASKI_INVERTED_MODEL} provides the filename (relative to directory \lcode{DATA/}) of the exported 
+\lcode{.kim} file (text file as produced using option \lcode{-otxt} of \ASKI executable \lcode{exportKim}).
+
+\lcode{ASKI_INVERTED_MODEL_INTERPOLATION_TYPE} and \lcode{ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS}
+control the method of interpolating the given inverted model (defined on an \ASKI internal inversion grid) 
+onto the GLL points used in your \lcode{SPECFEM3D} simulation. At the moment, an unstructured 3D 
+interpolation after Shepard \cite{Shepard68} is supported  which is founded on inverse-distance weighting 
+and accounts for issues of nearby points, direction and slope. 
+\lcode{ASKI_INVERTED_MODEL_INTERPOLATION_TYPE}
+can be either set to \lcode{shepard_standard} or to \lcode{shepard_factor_radius} .
+
+In case of type \lcode{shepard_factor_radius} , the factor given by \lcode{ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS}
+controls the influence of neighbouring control nodes on the interpolation (larger factor will include more 
+control nodes (further away) for the interpolation). For a particular GLL point, first the closest control node of the inverted model
+(center of inversion grid cell) is found. Then this distance is multiplied by 
+\lcode{ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS} to yield a radius within which all contained control nodes
+of the inverted model will be taken into account to compute the interpolated value for that GLL point.
+
+Method \lcode{shepard_standard} is the same as using \lcode{shepard_factor_radius} with \lcode{ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 2.0}.
+This factor proved to be a good choice. When setting the method to \lcode{shepard_standard}, any value given for 
+\lcode{ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS} is ignored.
 %
 %-------------------------------
 % SECTION preparing synthetic data
@@ -340,42 +590,88 @@ named \lcode{model_external_ASKI} which must contain 3 lines:
 \section{Preparing Synthetic Data as Expected by \ASKI}
 %#############################################################
 %
-Use binary \lcode{createSpecfem3dSyntheticData}. Calling \lcode{createSpecfem3dSyntheticData -h} will print a
-help message how to use it.
+Use executable \lcode{transformSpecfem3dCartesianSyntheticData}.\\
+Executing 
+\lcode{transformSpecfem3dCartesianSyntheticData} (without arguments) will print a
+help message how to use it and will list the required positional arguments and mandatory
+options and optional options.
 
-It is assumed that a copy of the \lcode{OUTPUT_FILES} folder (without the \lcode{MPI_DATABASES} files etc...)
+({\bf TODO IN THE FUTURE:} Provide here a list of arguments with more detailed descriptions)
+
+It is assumed that a copy of the content of the \lcode{OUTPUT_FILES} directory 
+(without the \lcode{MPI_DATABASES} files etc...)
 of all involved \lcode{SPECFEM3D} simulations (which contain the standard seismograms files) can be found at 
-the path as choosen by the automated python script (see~\ref{use_script}), i.e.\ filename of the kernel displacement 
-file for the respective event with the extension \lcode{_OUTPUT_FILES}. 
-The synthetic data then is written in the required form to path \lcode{PATH_SYNTHETIC_DATA}, where the filenames are by
-convention \lcode{synthetics_EVENTID_STATIONNAME}.  
-
-The option \lcode{-data} allows you to also transform synthetically created ``real'' data (e.g.\ for a 
-pure synthetic inversion) to the required form. Also in this case it is assumed that a copy of the 
-\lcode{OUTPUT_FILES} folders can be found at paths as choosen by the automated python script, i.e.\ the base
-filename of the measured data for the respective event with extension \lcode{_OUTPUT_FILES}. The ``real'' data 
-then is written in the required form to the measured data files with base filenames as defined in the iteration step 
-info database. 
+the path as choosen by the automated python script (see~\ref{use_script}), i.e.\ filename of the kernel 
+displacement file for the respective event with the extension \lcode{_OUTPUT_FILES}. 
+The synthetic data then is written in the required form to path \lcode{PATH_SYNTHETIC_DATA}, where the 
+filenames are by convention \lcode{synthetics_EVENTID_STATIONNAME_COMPONENT}. Make sure that the \ASKI frequency 
+discretization as defined by the \ASKI main parfile and iter parfile is correctly set! Also, all other objects
+used for an \ASKI iteration step (like wavefield points file, inversion grid etc.) must be in place, since
+for executing \lcode{transformSpecfem3dCartesianSyntheticData} the basic requirements for an iteration step
+are initiated (compare \ASKI manual, section ``Initiate Basic Requirements'').
 %
 %-------------------------------
 % SECTION preparing measured data
 %#############################################################
-\section{Preparing synthetically computed ``measured'' data as expected by \lcodetitle{ASKI}}
+\section{Preparing synthetically computed ``measured'' data as expected by \ASKI}
 %#############################################################
 %
-You can produce \ASKI files for measured data in the required form from \lcode{SPECFEM3D for ASKI} ``data'' 
+You can produce files for measured data in the form required by \ASKI from \lcode{SPECFEM3D for ASKI} ``data'' 
 simulations (e.g.\ produced by automated python script,~\ref{use_script}). This functionality may
 be used for synthetic tests, in which you must produce data for some perturbed earth model, which 
-is treated as measured data.
+is treated as (noise-free) measured data.
 
-Use binary \lcode{createSpecfem3dMeasuredData}. Calling \lcode{createSpecfem3dMeasuredData -h} will print a
-help message how to use it.
+Use executable \lcode{transformSpecfem3dCartesianMeasuredData}. \\
+Executing \lcode{transformSpecfem3dCartesianMeasuredData} (without arguments) 
+will print a help message how to use it and will list the required positional 
+arguments and mandatory options and optional options.
 
-It is assumed that a copy of the content of the \lcode{OUTPUT_FILES} folder (without the \lcode{MPI_DATABASES} files etc...)
-of the ``data'' simulations (which contain the standard seismograms files) can be found at 
+({\bf TODO IN THE FUTURE:} Provide here a list of arguments with more detailed descriptions)
+
+It is assumed that a copy of the content of the \lcode{OUTPUT_FILES} folder 
+(without the \lcode{MPI_DATABASES} files etc...)
+of the ``data'' simulations (which contain the standard seismograms files) can be found in respective
 directory \lcode{PATH_MEASURED_DATA/data_EVENTID_OUTPUT_FILES}. 
 The measured data files then are written in the required form to path \lcode{PATH_MEASURED_DATA}, where the filenames are by
-convention \lcode{data_EVENTID_STATIONNAME_COMP}.  
+convention \lcode{data_EVENTID_STATIONNAME_COMP}. 
+Make sure that the frequency discretization of \ASKI measured data as defined by the \ASKI main parfile 
+is correctly set, as well as the measured data path!
+%
+%-------------------------------
+% SECTION preparing measured data
+%#############################################################
+\section{Create \ASKI filter file from source time function} \label{createSpecfem3dFilters}
+%#############################################################
+%
+({\bf TODO IN THE FUTURE:} move this executable to the \ASKI main package, providing general functionality of 
+producing filter files for standard filters or arbitrary source-time-function input files, having a proper
+user interface)
+
+You can produce a filter file, which is conform to \ASKI from a time-domain trace file (e.g.\ the output
+txt file \lcode{plot_source_time_function.txt}) using the {\bf experimental} executable \lcode{createSpecfem3dFilters}.
+{\bf Do not just execute \lcode{createSpecfem3dFilters} without argument, it will print \emph{no} usage message!}
+
+This experimental executable must be prepared by you for your specific time and frequency discretization.
+It expects a txt file called "ricker.txt" in the directory from where you execute the program, containing
+two columns (e.g.\ first column time, second column amplitude of stf). \emph{The first column is entirely ignored!}
+The file is read in completely from first line (first time sample) to last line (last time sample). This solely
+defines the number of time samples \lcode{nt} used by the program.
+
+You must edit the source file\\
+\lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/createSpecfem3dFilters.f90} in the upper part and set
+the values of \lcode{df}, \lcode{nf} and \lcode{ifreq} according to the desired frequency discretization of the
+output filter file.
+You must set the value of \lcode{dt} according to the time step on which the input stf file "ricker.txt" 
+is based. \emph{This time step is not inferred from the first column of the input stf file (which is 
+entirely ignored, as said above)}. Set \lcode{nt1} which defines the time sample index of the start 
+time of the source wavelet: \lcode{nt1*dt} defines this time (i.e.\ if you want the source wavelet to be interpreted as starting at
+time $t=0$, the set \lcode{nt1 = 0}, for negative starting time, set \lcode{nt1} to the respective negative 
+time-sample index). \lcode{nt2} defines the time index of the end time of the input source wavelet and 
+\emph{must be set consistently, such that} \lcode{nt = nt2 - nt1 + 1}, this is parameter is not inferred from
+\lcode{nt1} and the length of the input source wavelet. 
+
+The output is a file called "ricker\_spec.txt", written to the directory from where you execute the program. 
+\emph{Existing files will be overwritten!}
 %
 %-------------------------------
 % SECTION Par_file_ASKI
@@ -392,22 +688,84 @@ installation file \lcode{Par_file_ASKI} is not present, no \ASKI output is produ
 In the following, we give a short description of the functionality of parameters defined
 in file \lcode{Par_file_ASKI}.
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+\subsection{\lcodetitle{ASKI} external model} \label{Par_file_ASKI,sub:ext_model}
+%+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+The following parameters will \emph{only} have any effect, when you set \lcode{MODEL = external}
+in \lcode{Par_file}. % FS FS CONTINUE
+
+First the \lcode{SPECFEM3D} model is set, as defined by standard \lcode{SPECFEM} mechanisms. 
+Then, \emph{only if indicated} by flag \lcode{USE_ASKI_BACKGROUND_MODEL}, this model is overwritten 
+by the \ASKI 1D background model at all depths where this background model is defined (see
+\myaref{import_model:ssec_1D}).
+After that, \emph{only if indicated}, by flag \lcode{IMPOSE_ASKI_INVERTED_MODEL} an \ASKI inverted 
+model is superimposed to the then existing model values (will set absolute model values, 
+but at the boundaries of the inversion domain it will smooth out to the existing model, see
+\myaref{import_model:ssec_kim_export}).
+
+%----------------------------------------------------------------------
+\subsubsection*{\lcode{USE_ASKI_BACKGROUND_MODEL, FILE_ASKI_BACKGROUND_MODEL}}
+%----------------------------------------------------------------------
+Logical flag \lcode{USE_ASKI_BACKGROUND_MODEL} indicates whether at all to use a 1D background model and
+
+\lcode{FILE_ASKI_BACKGROUND_MODEL} , defines a filename relative to \lcode{DATA/} from which the 1D model
+is read. For the required format of this text file, see \myaref{import_model:ssec_1D}.
+
+%----------------------------------------------------------------------
+\subsubsection*{\lcode{IMPOSE_ASKI_INVERTED_MODEL, FILE_ASKI_INVERTED_MODEL, ASKI_INVERTED_MODEL_INTERPOLATION_TYPE, 
+ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS}}
+Logical flag \lcode{IMPOSE_ASKI_INVERTED_MODEL} indicates whether at all to impose an \ASKI inverted model
+onto the existing model (standard background or standard background plus \ASKI 1D background).
+
+\lcode{FILE_ASKI_INVERTED_MODEL} gives the filename relative to \lcode{DATA/} where to find the file containing
+the the exported \lcode{.kim} file (text file as produced using option \lcode{-otxt} of \ASKI executable 
+\lcode{exportKim}).
+
+Parameters \lcode{ASKI_INVERTED_MODEL_INTERPOLATION_TYPE, ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS} control the
+way of interpolating the model values given on control nodes of an \ASKI inversion grid onto the GLL points of
+the current \lcode{SPECFEM3D} mesh. For their meaning see \myaref{import_model:ssec_kim_export}.
+
+%----------------------------------------------------------------------
+
+%+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{\lcodetitle{ASKI} output} \label{Par_file_ASKI,sub:output}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 %----------------------------------------------------------------------
-\subsubsection*{\lcode{COMPUTE_ASKI_OUTPUT, OVERWRITE_ASKI_OUTPUT}}
+\subsubsection*{\lcode{COMPUTE_ASKI_OUTPUT, ASKI_MAIN_FILE_ONLY, OVERWRITE_ASKI_OUTPUT}}
 %----------------------------------------------------------------------
-Parameter \lcode{COMPUTE_ASKI_OUTPUT} controls if any ASKI functionality is applied by \lcode{SPECFEM3D} and
-output files (i.e. kernel green tensor kernel displacement files) are produced. If true, \lcode{OVERWRITE_ASKI_OUTPUT}
-controls if those files shall be overwritten if existend or not. If false and files exist, the \lcode{SPECFEM3D}
-solver will terminate raising an error message.
+Parameter \lcode{COMPUTE_ASKI_OUTPUT} controls whether at all \ASKI output is produced by the \lcode{SPECFEM3D} 
+solver (i.e.\ kernel green tensor kernel displacement main or frequency files). 
+
+If \lcode{COMPUTE_ASKI_OUTPUT = .true.}, then logical flag \lcode{ASKI_MAIN_FILE_ONLY} controls whether to
+produce only the \lcode{.main} output file at the beginning of a simulation and immendiately terminate. No
+frequency output files and no \lcode{SPECFEM} seismograms will be produces in this case. This functionality
+is useful, if you want to check the resolution of wavefield points with regard of your chosen inversion grid 
+or you want to look at the kernel reference model (background model used by \lcode{SPECFEM}) \emph{before}
+running all your simulations for an iteration step of \ASKI waveform inversion. With one single \lcode{.main}
+output file available, namely, you can execute the \ASKI executable \lcode{initBasics} and check for everything
+related to your wavefield points and inversion grid.
+
+Logical flag \lcode{OVERWRITE_ASKI_OUTPUT} controls if the \ASKI output files files shall be overwritten if 
+existend or not. If set to \lcode{.false.} and any of those files exist, the \lcode{SPECFEM3D} solver will 
+terminate raising an error message.
+
+Setting \lcode{COMPUTE_ASKI_OUTPUT = .false.} will \emph{not} prevent the \lcode{SPECFEM3D} mesher from
+setting an \ASKI external model, if \lcode{MODEL = external} in \lcode{Par_file} and any external
+model is defined as described above in section~\ref{Par_file_ASKI,sub:ext_model}{} ! So you can
+use an \ASKI external model along with a standard \lcode{SPECFEM3D} simulation.
+
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_outfile, ASKI_output_ID}}
 %----------------------------------------------------------------------
-\lcode{ASKI_outfile} defines the absolute base file name of \ASKI output files. \lcode{ASKI_output_ID} is a character
-string of maximum lenght as defined by parameter \lcode{length_ASKI_output_ID} in file \lcode{specfem3D_par_ASKI.f90} 
-with which all output files of a certain run will be taged, and it will be used to check consistency of the files
-(could be a timestamp, eventID, station name, component etc).
+\lcode{ASKI_outfile} defines the absolute base file name of \ASKI output files.
+The actual output files of this simulation will be this base name appended by file extensions
+\lcode{.main} (for main output file) and \lcode{.jf############} for each frequency (e.g.\ \lcode{.jf000013} for 
+frequency index 13).
+
+\lcode{ASKI_output_ID} is a character
+string of maximum lenght as defined by parameter \lcode{length_ASKI_output_ID} in file\\
+\lcode{ASKI_1.0/SPECFEM3D_Cartesian_for_ASKI/specfem3D_par_ASKI.f90} 
+with which all output files of the current simulation will be taged, and it will be used to check consistency 
+of the files (could be a timestamp, eventID, station name, component etc).
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 \subsection{Frequency discretization}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -433,7 +791,7 @@ are always in double complex precision!
 \subsubsection*{\lcode{ASKI_DFT_apply_taper, ASKI_DFT_taper_percentage}}
 %----------------------------------------------------------------------
 Decide whether the (oversampled, noisy, ...) time series should be tapered by a hanning taper (on tail)
-before (i.e.\ while) applying the discrete fourier transform (on-the-fly). If \lcode{ASKI_DFT_apply_taper = .true.},
+while applying the discrete fourier transform (on-the-fly). If \lcode{ASKI_DFT_apply_taper = .true.},
 the value of \lcode{ASKI_DFT_taper_percentage} (between 0.0 and 1.0) defines the amount of
 total time for which the hanning taper will be applied at the tail of the time series.
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -445,9 +803,9 @@ total time for which the hanning taper will be applied at the tail of the time s
 ASKI supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECFEM3D}.
 \lcode{ASKI_type_inversion_grid = }
 \begin{enumerate}
-\item (\lcode{TYPE_INVERSION_GRID = ccsInversionGrid}) \\ 
-  NOT TO BE USED WITH SPECFEM3D Cartesian! {\bf NOT SUPPORTED YET}\\
-  ASKI internal, but SPECFEM independent spherical inverison grid
+\item (\lcode{TYPE_INVERSION_GRID = schunkInversionGrid}) \\ 
+  NOT TO BE USED WITH SPECFEM3D Cartesian!\\
+  ASKI internal, but SPECFEM independent simple spherical inverison grid
 \item (\lcode{TYPE_INVERSION_GRID = scartInversionGrid})\\
   \ASKI internal, but \lcode{SPECFEM} independent cartesian inversion grid:\\
   The values for \ASKI output are stored at all inner GLL points of spectral elements which lie
@@ -455,7 +813,7 @@ ASKI supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECF
   \ASKI loactes the coordinates of those points inside the inversion grid cells and computes
   integration weights for them.
 \item (\lcode{TYPE_INVERSION_GRID = ecartInversionGrid}) \\
-  External inversion grid provided e.g.\ by \lcode{CUBIT}, which may contain tetrahedra, as well as hexahedra.
+  External inversion grid provided e.g.\ by \lcode{Trelis}, which may contain tetrahedra, as well as hexahedra.
   As in case of \lcode{ASKI_type_inversion_grid = 2}, \ASKI output is stored at all inner GLL points of elements
   which are inside the volume defined by \lcode{ASKI_(cw)(xyz)}.
   \ASKI locates the wavefield points inside the inversion grid and computes weights.
@@ -465,6 +823,9 @@ ASKI supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECF
   volume defined by \lcode{ASKI_(cw)(xyz)}. Additionally store the jacobians for all wavefield points.
   Assume \lcode{ncell = ntot_wp/(NGLLX*NGLLY*NGLLY)} as the number of inversion grid cells, and the order of 
   wavefield points accordingly (\lcode{do k=1,NGLLZ;} \lcode{do j=1,NGLLY;} \lcode{do i=1,NGLLX;} \lcode{ip=ip+1 ....})
+\item (\lcode{TYPE_INVERSION_GRID = chunksInversionGrid}) \\ 
+  NOT TO BE USED WITH SPECFEM3D Cartesian!\\
+  ASKI internal, but SPECFEM independent more elaborate spherical inverison grid
 \end{enumerate}
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_(cw)(xyz), ASKI_rot_(XYZ)}}
@@ -482,79 +843,18 @@ rotated (anti-clockwise) about the \lcode{Z}, \lcode{Y} and \lcode{X} coordinate
 \emph{Be aware}:
 \begin{itemize}
 \item the parameters for rotation angles \lcode{ASKI_rot_(XYZ)} \emph{must always} be assinged to values! 
-  Set to \lcode{0.} if not used.
+  Set to \lcode{0.} if no rotation should be applied.
 \item \lcode{scartInversionGrid} only supports \lcode{ASKI_rot_Z} and uses a different definintion of the z-coverage.
-\item \lcode{ecartInversionGrid} and \lcode{specfem3dInversionGrid} use \emph{all} rotation angles \lcode{ASKI_rot_(XYZ)}.
+\item \lcode{ecartInversionGrid} and \lcode{specfem3dInversionGrid} use \emph{all} rotation angles \lcode{ASKI_rot_(XYZ)} 
+(again, set angles to zero if no rotation is desired).
 \end{itemize}
 %
 %-------------------------------
-% SECTION install kernel output
-%#############################################################
-\section{Extend \lcodetitle{SPECFEM3D\_Cartesian-2.1} to produce output for \ASKI} \label{extent_to_ASKI}
-%#############################################################
-%
-This section explains how to use the \lcode{SPECFEM3D_Cartesian} software 
-\url{http://geodynamics.org/cig/software/specfem3d} as a forward method for \ASKI. In general, a regularly
-installed \lcode{SPECFEM3D_Cartesian} version is extended by certain few modifications so it can produce
-output for \ASKI. So, \lcode{SPECFEM3D_Cartesian for ASKI} basically has the same requirements and dependencies 
-than the \lcode{SPECFEM3D_Cartesian} code, except that it needs a bit more memory and disc space. You should, 
-therefore, have sufficient knowledge of how to run the regular \lcode{SPECFEM3D_Cartesian} software. Furthermore, 
-you need an installation of \ASKI (obviously).
-%
-%----------------------------------------------------------------------
-\subsection{Download and Dependencies} \label{extent_to_ASKI,sub:download_dependencies}
-%----------------------------------------------------------------------
-%
-The extension package \lcode{SPECFEM3D_Cartesian-2.1 for ASKI} can be downloaded from 
-\url{http://www.rub.de/ASKI}.
-
-It assumes a running version of \lcode{SPECFEM3D_Cartesian} on your system which must be capable of a 
-certain functionality. If the currently availabe release version of \lcode{SPECFEM3D_Cartesian} does not have 
-this functionality, you can download \url{http://www.rub.de/ASKI}. 
-This is a basic extract from the \lcode{SPECFEM3D_Cartesian} svn-repository (svn-revision by 9 june 2013, 
-\lcode{SPECFEM3D} version \lcode{2.1}) which has been debugged and slightly modified such that it is capable of the 
-required functionality. Important functionality is listed in the following, whereby the code references are related 
-to the previously mentioned modified svn revision:
-\begin{itemize}
-\item in case of \lcode{USE_FORCE_POINT_SOURCE = .true.} in \lcode{Par_file} the sources should be interpolated inside the 
-  source array and not just set to the closest GLL point (compare \lcode{src/specfem3D/locate_source.f90}, comments \lcode{FS FS})\\
-  This, however, is not a strict necessity, you can also use \lcode{SPECFEM3D_Cartesian} codes which do not do this.
-%
-\item in case of \lcode{USE_FORCE_POINT_SOURCE = .true.} and \\
-  \lcode{USE_RICKER_TIME_FUNCTION = .false.} in 
-  \lcode{Par_file}, the regular Heaviside source time function (function \lcode{comp_source_time_function}) must
-  be used (compare \lcode{src/specfem3D/compute_add_sources_viscoelastic.f90}, \lcode{src/specfem3D/setup_sources_receivers.f90} 
-  comments \lcode{FS FS})
-%
-\item using external models (\lcode{MODEL = external} in \lcode{Par_file}), subroutine \lcode{model_external_values} must 
-  be passed the default model values on enter (compare \lcode{src/generate_databases/get_model.f90}, comments \lcode{FS FS})
-%
-\item the general user interface of the \lcode{SPECFEM3D_Cartesian} code (i.e.\ definition of source mechanisms and receivers, 
-  models, output files etc.) must be compatible with \lcode{SPECFEM3D_Cartesian} version \lcode{2.1} by june 2013.
-\end{itemize}
-%
-%----------------------------------------------------------------------
-\subsection{Installation}
-%----------------------------------------------------------------------
-%
-Extract the files of the extension package \lcode{SPECFEM3D_Cartesian-2.1 for ASKI} into a subdirectory
-of your \ASKI installation path, in the following refered to as \lcode{SPECFEM_for_ASKI}. I.e.\ the directory 
-\lcode{SPECFEM_for_ASKI} is contained in directory \ASKI.\\
-Install a \lcode{SPECFEM3D_Cartesian} code on your system which meets the requirements as in 
-subsection~\ref{extent_to_ASKI,sub:download_dependencies}, in the following the \lcode{SPECFEM3D_Cartesian} 
-installation path is refered to as \lcode{SPECFEM3D}.
-\begin{itemize}
-\item Follow the 9 items in the ``Installation'' section of file \lcode{ASKI/SPECFEM_for_ASKI/README}, whereby the first one
-  should already be completed.
-\item Adjust variables \lcode{SHELL}, \lcode{BLAS}, \lcode{LAPACK} etc.\ in \lcode{SPECFEM_for_ASKI/Makefile} in the 
-  same way as you did in \lcode{ASKI/Makefile} for the installation of \ASKI. The same environment variables are assumed 
-  here, too.
-\item Run \lcode{make clean} and \lcode{make all} in \lcode{ASKI/SPECFEM_for_ASKI}.
-\item Set \lcode{USE_SOURCES_RECVS_Z = .true.} in \lcode{SPECFEM3D/src/shared/constants.h} (or wherever your \lcode{constants.h}
-  is).
-\item Recompile your \lcode{SPECFEM3D_Cartesian} code by running \lcode{make clean} and \lcode{make all} in \lcode{SPECFEM3D}.
-\end{itemize}
-%
+% BIBLIOGRAPHY
+\bibliographystyle{alpha}
+\bibliography{bibliography}
+\phantomsection  % so hyperref creates bookmarks
+\addcontentsline{toc}{section}{References}
 %-------------------------------
 % SECTION GNU Free Documentation License
 \newpage
