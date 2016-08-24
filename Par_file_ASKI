@@ -9,14 +9,14 @@
 # but at the boundaries of the inversion domain it will smooth out to the existing model)
 
 # USE_ASKI_BACKGROUND_MODEL indicates whether SPECFEM3D_Cartesian should use the 1D reference model as defined in
-# file given by character string FILE_ASKI_BACKGROUND_MODEL , relative to "DATA/" .
+# the file given by character string FILE_ASKI_BACKGROUND_MODEL , relative to "DATA/" .
 # (will simply overwrite model values on all GLL points, dependent on depth (or rather z). THIS MODEL WILL
 # NOT AFFECT THE MESHING OF DISCONTINUITIES ETC.!!)
 USE_ASKI_BACKGROUND_MODEL = .false.
 FILE_ASKI_BACKGROUND_MODEL = 
 
 # IMPOSE_ASKI_INVERTED_MODEL indicates whether SPECFEM3D_Cartesian should impose the ASKI inverted model as
-# defined in file given by character string FILE_ASKI_INVERTED_MODEL , relative to "DATA/" .
+# defined in the file given by character string FILE_ASKI_INVERTED_MODEL , relative to "DATA/" .
 # This model will be set in the region of the inversion grid, where it was derived
 # interpolation type can be either shepard_standard or shepard_factor_radius . shepard_standard is the same as 
 # shepard_factor_radius with factor_shepard_radius = 2.0 

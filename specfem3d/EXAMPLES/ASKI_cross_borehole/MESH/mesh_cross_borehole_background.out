@@ -1,0 +1,301 @@
+RLM Diagnostics at 11/10/2015 12:17 
+
+    RLM version: 10.1BL2
+    RLM platform: x64_l1
+    OS version: 3.16.0-4-amd64
+
+    Hostname: minos18
+    User: florian
+    Working directory: /rscratch/minos18/florian/ASKI/SPECFEM3D_Cartesian_git_master_2015-11-07_for_ASKI_1-0/EXAMPLES/ASKI_cross_borehole
+
+Environment:
+
+        HTTP_PROXY=<not set>
+        RLM_CONNECT_TIMEOUT=<not set>
+        RLM_EXTENDED_ERROR_MESSAGES=<not set>
+        RLM_LICENSE=<not set>
+        RLM_NO_UNLIMIT=<not set>
+        RLM_PATH_RANDOMIZE=<not set>
+        RLM_PROJECT=<not set>
+        RLM_QUEUE=<not set>
+        RLM_ROAM=<not set>
+        RLMSTAT=<not set>
+        csimsoft_LICENSE=<not set>
+
+    RLM hostid list:
+
+        93868aa4 003048d06faa 003048d06fab 003048d06faa ip=############### ip=###############
+
+License files:
+        /opt/Trelis-15.1/bin/licenses/remote.lic
+
+rlm_init() parameters:
+        1: /opt/Trelis-15.1/bin/licenses
+        2: <empty>
+        3: <empty>
+
+Nodelocked/roaming licenses which can be checked out
+
+    Client Cached Licenses (only the highest version # shown):
+
+        <none>
+
+
+    In license file /opt/Trelis-15.1/bin/licenses/remote.lic
+          (server at: #########################################)
+                      
+        <none>
+
+    Roaming Licenses:
+
+        <none>
+
+
+                   CCCCC    UU   UU   BBBBBB    IIII   TTTTTT
+                  CC   CC   UU   UU   BB   BB    II      TT
+                  CC        UU   UU   BB   BB    II      TT
+                  CC        UU   UU   BBBBBB     II      TT
+                  CC        UU   UU   BB   BB    II      TT
+                  CC   CC   UU   UU   BB   BB    II      TT
+                   CCCCC     UUUUU    BBBBBB    IIII     TT  tm
+
+                            MESH GENERATION TOOLKIT        
+                                      FOR                   
+                   PRE-PROCESSING OF FINITE ELEMENT ANALYSES
+
+                 User community mailing list: cubit@sandia.gov   
+         Report bugs and enhancement requests to cubit-help@sandia.gov
+
+
+                         Cubit Version 15.1.2 64 Bit Build 7ccf2c4
+                               VTK Version 5.10.1
+                              ACIS Version 24.0.1.0
+                            Exodus API Version 6,05
+                     Copyright 2001-2008 Sandia Corporation
+              Revised Fri Dec 5 10:35:15 2014 -0700
+                        Running 11/10/2015 12:17:10 PM
+
+             CUBIT includes Tetmesh-GHS3D by Distene S.A.S./INRIA.
+                  CUBIT includes ACIS software by Spatial Inc.
+                  CUBIT includes LP Solve by Michel Berkelaar.
+                       CUBIT includes VTK by Kitware Inc.
+           CUBIT includes Exodus II, based on netCDF by UCAR/Unidata.
+            CUBIT includes VERDICT, by Sandia National Laboratories.
+          CUBIT includes MESQUITE, by Argonne National Laboratory and
+                         Sandia National Laboratories.
+
+Machine type is Linux 3.16.0-4-amd64
+Machine name is minos18
+
+
+Commands will be journaled to '/rscratch/minos18/florian/ASKI/SPECFEM3D_Cartesian_git_master_2015-11-07_for_ASKI_1-0/EXAMPLES/ASKI_cross_borehole/cubit01.jou'
+Journaled Command: reset
+
+Successfully created brick volume 1 
+Journaled Command: brick x 200 y 200 z 150
+
+Journaled Command: volume 1 move x 0 y 0 z -75
+
+('## el = ', 10.0)
+Journaled Command: volume all size 10
+
+Volume 1 (Volume 1) meshing scheme automatically set to submap.
+Matching intervals successful.
+Meshing Volume 1 (Volume 1)
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 400 faces for Surface 1 (Surface 1).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 400 faces for Surface 2 (Surface 2).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 300 faces for Surface 3 (Surface 3).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 300 faces for Surface 4 (Surface 4).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 300 faces for Surface 5 (Surface 5).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 300 faces for Surface 6 (Surface 6).
+Generating Mesh
+Processing...
+0   |    |    |    |    50   |    |    |    |  100
+
+Generated 6000 hexes for Volume 1 (Volume 1).
+Volume 1 (Volume 1) meshing completed using scheme: submap
+
+Meshing Time (sec) : 0
+
+Meshing time: 0,064126 
+Journaled Command: mesh volume all
+
+Journaled Command: block 1 hex in volume 1
+
+Journaled Command: block 1 name "elastic 1"
+
+Number of attributes on block 1 changed from default to 7
+Journaled Command: block 1 attribute count 7
+
+Journaled Command: block 1 attribute index 1 1
+
+Journaled Command: block 1 attribute index 2 1082
+
+Journaled Command: block 1 attribute index 3 625
+
+Journaled Command: block 1 attribute index 4 1800
+
+Journaled Command: block 1 attribute index 5 9999
+
+Journaled Command: block 1 attribute index 6 9999
+
+Journaled Command: block 1 attribute index 7 0
+
+Journaled Command: block 2 face in surface 1
+
+Journaled Command: block 2 name "face_topo"
+
+Journaled Command: block 3 face in surface 2
+
+Journaled Command: block 3 name "face_abs_bottom"
+
+Journaled Command: block 4 face in surface 3
+
+Journaled Command: block 4 name "face_abs_ymin"
+
+Journaled Command: block 5 face in surface 4
+
+Journaled Command: block 5 name "face_abs_xmin"
+
+Journaled Command: block 6 face in surface 5
+
+Journaled Command: block 6 name "face_abs_ymax"
+
+Journaled Command: block 7 face in surface 6
+
+Journaled Command: block 7 name "face_abs_xmax"
+
+pass
+('Found ', 7, ' Blocks')
+(1, 0, 'name: ', 'elastic 1', '#hexes:', 6000, 'type: ', 'HEX8', 'attribute count: ', 7, 'vp: ', 1082.0, 'vs: ', 625.0, 'rho: ', 1800.0)
+('face_topo', '--no elastic')
+('face_abs_bottom', '--no elastic')
+('face_abs_ymin', '--no elastic')
+('face_abs_xmin', '--no elastic')
+('face_abs_ymax', '--no elastic')
+('face_abs_xmax', '--no elastic')
+('Block ', 'elastic 1', ' min dx: ', 1.72699999999999, ' max dx: ', 5.667270242365398, 'max frequency: ', 49.999999999999716, ' maximal dt (C=0.5):', 0.0007994454713493484)
+   6000 HEXAS IN THIS BLOCK
+   histogram of minimum edge length of hexa of this block:
+        0.633 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+        0.267 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+        2.200 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+        1.067 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+        0.367 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+       16.983 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+        6.917 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+       27.667 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+       14.950 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+       28.950 % of hexas have minimum edgelength between 10.000 and 10.000  ->   dt (C=0.5) is 7.994e-04
+   6000 HEXAS IN THIS BLOCK
+   histogram of maximum edge length of hexa of this block:
+       27.500 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+       16.100 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+       32.117 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        4.983 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        1.133 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+       13.283 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        0.983 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        3.133 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        0.200 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+        0.567 % of hexas have maximum edgelength between 10.000 and 10.000  ->   fmax (5 GLL points per wavelength) is 5.000e+01
+('The minimum over all blocks of the respective maximal dt for C=0.5 is: ', 0.0007994454713493484)
+('The minimum over all blocks of the respective maximal frequency is: ', 49.999999999999716)
+Progress
+Saving CUBIT file '/rscratch/minos18/florian/ASKI/SPECFEM3D_Cartesian_git_master_2015-11-07_for_ASKI_1-0/EXAMPLES/ASKI_cross_borehole/MESH/meshing.cub'
+0   |    |    |    |    50   |    |    |    |  100
+*********************************************
+Exported:   1 Volume
+
+*****
+Successfully saved CUBIT file '/rscratch/minos18/florian/ASKI/SPECFEM3D_Cartesian_git_master_2015-11-07_for_ASKI_1-0/EXAMPLES/ASKI_cross_borehole/MESH/meshing.cub'
+Journaled Command: save as "MESH/meshing.cub" overwrite
+
+Turning informational messages on.
+Journaled Command: set info on
+
+Echoing has been turned ON
+Journaled Command: set echo on
+
+1 elastic 1 (1, 2, 3, 4, 5, 6, 7) HEX8 HEX8 QUAD4
+2 face_topo (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+3 face_abs_bottom (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+4 face_abs_ymin (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+5 face_abs_xmin (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+6 face_abs_ymax (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+7 face_abs_xmax (1, 2, 3, 4, 5, 6, 7) SHELL4 HEX8 QUAD4
+Journaled Command: compress
+
+Turning informational messages off.
+Writing MESH/mesh_file.....
+  number of elements: 6000
+Ok
+Writing MESH/materials_file.....
+Ok
+Writing MESH/nodes_coords_file.....
+  number of nodes: 7056
+Ok
+Writing MESH/nummaterial_velocity_file.....
+#material properties:
+(2, 1, 1082.0, 625.0, 1800.0, 9999.0, 9999.0, 0.0)
+Ok
+Writing MESH/free_or_absorbing_surface_file_zmax.....
+  block name: face_topo id: 2
+  number of faces =  400
+Ok
+Turning informational messages on.
+Echoing has been turned ON
+Finished Command: set echo on
+
+Turning informational messages off.
+face_abs_bottom 3
+Writing MESH/absorbing_surface_file_bottom.....
+  number of faces =  400
+face_abs_ymin 4
+Writing MESH/absorbing_surface_file_ymin.....
+  number of faces =  300
+face_abs_xmin 5
+Writing MESH/absorbing_surface_file_xmin.....
+  number of faces =  300
+face_abs_ymax 6
+Writing MESH/absorbing_surface_file_ymax.....
+  number of faces =  300
+face_abs_xmax 7
+Writing MESH/absorbing_surface_file_xmax.....
+  number of faces =  300
+Ok
+Turning informational messages on.
+Echoing has been turned ON
+Finished Command: set echo on
+
+Ok
+Turning informational messages on.
+Finished Command: set info on
+
+Echoing has been turned ON
+Finished Command: set echo on
+

@@ -1,20 +1,20 @@
 !----------------------------------------------------------------------------
-!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !
-!   This file is part of ASKI version 1.0.
+!   This file is part of ASKI version 1.2.
 !
-!   ASKI version 1.0 is free software: you can redistribute it and/or modify
+!   ASKI version 1.2 is free software: you can redistribute it and/or modify
 !   it under the terms of the GNU General Public License as published by
 !   the Free Software Foundation, either version 2 of the License, or
 !   (at your option) any later version.
 !
-!   ASKI version 1.0 is distributed in the hope that it will be useful,
+!   ASKI version 1.2 is distributed in the hope that it will be useful,
 !   but WITHOUT ANY WARRANTY; without even the implied warranty of
 !   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !   GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with ASKI version 1.0.  If not, see <http://www.gnu.org/licenses/>.
+!   along with ASKI version 1.2.  If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 program transformSpecfem3dCartesianSyntheticData
   use specfem3dForASKI_mod
@@ -81,10 +81,16 @@ program transformSpecfem3dCartesianSyntheticData
   type (seismic_station) :: station
   character(len=400) :: path_specfem_seismograms,path_synthetic_data,file_synthetic_data
 
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!  PROGRAM STARTS HERE
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  nullify(str_vec,trans_coef,traces,stf,jf)
+
 !------------------------------------------------------------------------
 !  arguments
 !
-  call init(ap,myname,"Transform standard SPECFEM3D Cartesian 3.0 output to ASKI 1.0 spectral data in synthetic-data format")
+  call init(ap,myname,"Transform standard SPECFEM3D Cartesian 3.0 output to ASKI 1.0-1.2 spectral data in synthetic-data format")
   call addPosarg(ap,"main_parfile","sval","Main parameter file of inversion")
   call addOption(ap,"-bicode",.true.,"(mandatory) bandcode and instrument code: the first two characters before "//&
        "the component in seismogram filename, e.g. 'LH' if your filenames look like 'network.staname.LH*.semd'",&
@@ -93,10 +99,10 @@ program transformSpecfem3dCartesianSyntheticData
        "orientations following band_instrument_code","sval","")
   call addOption(ap,"-dt",.true.,"(mandatory) time step of the seismograms (as in SPECFEM3D Par_file)","rval","0.0")
   call addOption(ap,"-nstep",.true.,"(mandatory) number of samples NSTEP as in SPECFEM3D Par_file","ival","0")
-  call addOption(ap,"-ocomp",.true.,"(mandatory) receiver components for which measured data is produced; valid "//&
+  call addOption(ap,"-ocomp",.true.,"(mandatory) receiver components for which synthetic data is produced; valid "//&
        "components: '"//trim(all_valid_components)//"')","svec","")
-  call addOption(ap,'-evid',.true.,"(optional) indicates a single event for which measured data is produced, "//&
-       "otherwise measured data is produced for all events (as defined in ASKI FILE_EVENT_LIST)",'sval','')
+  call addOption(ap,'-evid',.true.,"(optional) indicates a single event for which synthetic data is produced, "//&
+       "otherwise synthetic data is produced for all events (as defined in ASKI FILE_EVENT_LIST)",'sval','')
   call addOption(ap,"-dconv",.false.,"(optional) if set, the source time function will be deconvolved from "//&
        "SPECFEM seismograms; consistend with 'ASKI_DECONVOLVE_STF = .true.' in Par_file_ASKI")
   call addOption(ap,"-bin",.false.,"(optional) indicates whether SPECFEM trace files are binary files or not. "//&

@@ -1,0 +1,45 @@
+## 
+## Trelis Version 15.1.2
+## Trelis Build 7ccf2c4
+## Revised Fri Dec 5 10:35:15 2014 -0700
+## Running 11/10/2015 12:17:10 PM
+## Command Options:
+reset
+brick x 200 y 200 z 150
+volume 1 move x 0 y 0 z -75
+volume all size 10
+mesh volume all
+block 1 hex in volume 1
+block 1 name "elastic 1"
+# Material 1, background
+block 1 attribute count 7
+block 1 attribute index 1 1
+# flag for material: 1 for 1. material
+block 1 attribute index 2 1082
+# vp
+block 1 attribute index 3 625
+# vs
+block 1 attribute index 4 1800
+# rho
+block 1 attribute index 5 9999
+block 1 attribute index 6 9999
+block 1 attribute index 7 0
+# anisotropy_flag
+block 2 face in surface 1
+block 2 name "face_topo"
+block 3 face in surface 2
+block 3 name "face_abs_bottom"
+block 4 face in surface 3
+block 4 name "face_abs_ymin"
+block 5 face in surface 4
+block 5 name "face_abs_xmin"
+block 6 face in surface 5
+block 6 name "face_abs_ymax"
+block 7 face in surface 6
+block 7 name "face_abs_xmax"
+save as "MESH/meshing.cub" overwrite
+set info on
+set echo on
+compress
+set info off
+set echo off

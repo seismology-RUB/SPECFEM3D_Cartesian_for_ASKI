@@ -1,23 +1,24 @@
 !----------------------------------------------------------------------------
-!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !
-!   This file is part of ASKI version 1.0.
+!   This file is part of ASKI version 1.2.
 !
-!   ASKI version 1.0 is free software: you can redistribute it and/or modify
+!   ASKI version 1.2 is free software: you can redistribute it and/or modify
 !   it under the terms of the GNU General Public License as published by
 !   the Free Software Foundation, either version 2 of the License, or
 !   (at your option) any later version.
 !
-!   ASKI version 1.0 is distributed in the hope that it will be useful,
+!   ASKI version 1.2 is distributed in the hope that it will be useful,
 !   but WITHOUT ANY WARRANTY; without even the implied warranty of
 !   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 !   GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with ASKI version 1.0.  If not, see <http://www.gnu.org/licenses/>.
+!   along with ASKI version 1.2.  If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 module specfem3dForASKI_mod
 !
+  use fourierTransform
   use realloc
 !
   implicit none
@@ -362,6 +363,86 @@ subroutine writeTraces(traces,DT,NSTEP,ntrace,statlist,output_path,band_instrume
   end do ! while next station
 !  
 end subroutine writeTraces
+!
+!-----------------------------------------------------------------------------------------------------------------
+!
+subroutine applyDPFFTOneTrace(trace,nt,spectrum,nfft,nlog)
+  implicit None
+!
+  real, dimension(nt), intent(in) :: trace
+  double complex, dimension(nfft) :: spectrum
+  integer :: nt,nfft,nlog
+  ! local
+  double precision, dimension(nfft) :: rp,ip
+!
+  ! assume here, that nt <= nfft
+!
+  rp(:) = 0.d0; rp(1:nt) = dble(trace)
+  ip = 0.d0
+  call fastFourierTransform(rp,ip,nlog,-1)
+  spectrum = dcmplx(rp,ip)
+end subroutine applyDPFFTOneTrace
+!
+!-----------------------------------------------------------------------------------------------------------------
+!
+subroutine applyDPIFFTOneTrace(spectrum,nfft,nlog,trace,nt)
+  implicit None
+!
+  double complex, dimension(nfft), intent(in) :: spectrum
+  real, dimension(nt) :: trace
+  integer :: nt,nfft,nlog
+  ! local
+  double precision, dimension(nfft) :: rp,ip
+!
+  ! assume here, that nt <= nfft
+!
+  rp = dble(spectrum); ip = imagpart(spectrum)
+  call fastFourierTransform(rp,ip,nlog,1)
+  trace = real(rp(1:nt))
+end subroutine applyDPIFFTOneTrace
+!
+!-----------------------------------------------------------------------------------------------------------------
+!
+subroutine applyDPFFTTraces(traces,nt,ntrace,spectra,nfft,nlog)
+  implicit None
+!
+  real, dimension(nt,ntrace), intent(in) :: traces
+  double complex, dimension(nfft,ntrace) :: spectra
+  integer :: nt,ntrace,nfft,nlog
+  ! local
+  integer :: itrace
+  double precision, dimension(nfft) :: rp,ip
+!
+  ! assume here, that nt <= nfft
+!
+  do itrace = 1,ntrace
+     rp(:) = 0.d0; rp(1:nt) = dble(traces(:,itrace))
+     ip = 0.d0
+     call fastFourierTransform(rp,ip,nlog,-1)
+     spectra(:,itrace) = dcmplx(rp,ip)
+  end do ! itrace
+end subroutine applyDPFFTTraces
+!
+!-----------------------------------------------------------------------------------------------------------------
+!
+subroutine applyDPIFFTTraces(spectra,nfft,nlog,ntrace,traces,nt)
+  implicit None
+!
+  double complex, dimension(nfft,ntrace), intent(in) :: spectra
+  real, dimension(nt,ntrace) :: traces
+  integer :: nt,ntrace,nfft,nlog
+  ! local
+  integer :: itrace
+  double precision, dimension(nfft) :: rp,ip
+!
+  ! assume here, that nt <= nfft
+!
+  do itrace = 1,ntrace
+     rp = dble(spectra(:,itrace)); ip = imagpart(spectra(:,itrace))
+     call fastFourierTransform(rp,ip,nlog,1)
+     traces(:,itrace) = real(rp(1:nt))
+  end do ! itrace
+end subroutine applyDPIFFTTraces
 !
 !-----------------------------------------------------------------------------------------------------------------
 !

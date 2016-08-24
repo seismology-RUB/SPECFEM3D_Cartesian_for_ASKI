@@ -1,6 +1,25 @@
-###############################################################
-#  This is the Makefile for SPECFEM3D_Cartesian 3.0 for ASKI 1.0
-###############################################################
+#----------------------------------------------------------------------------
+#   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+#
+#   This file is part of ASKI version 1.2.
+#
+#   ASKI version 1.2 is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   ASKI version 1.2 is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with ASKI version 1.2.  If not, see <http://www.gnu.org/licenses/>.
+#----------------------------------------------------------------------------
+#
+################################################################
+#  This is the Makefile for the extension package SPECFEM3D_Cartesian for ASKI (for GNU Make)
+################################################################
 #
 #-----------------------------------------------------------------------
 #  set the compiler
@@ -10,8 +29,8 @@ COMPILER = gfortran
 #-----------------------------------------------------------------------
 #  General definitions
 #
-bindir = ../bin
-obsdir = ../obj
+bindir = ../ASKI/bin
+obsdir = ../ASKI/obj
 #
 FFLAGS = -O3 -J$(obsdir) -I/usr/include -Wunused-variable -Wuninitialized -fimplicit-none -ffixed-line-length-132 -fbounds-check -fbacktrace
 #
@@ -19,7 +38,7 @@ FFLAGS = -O3 -J$(obsdir) -I/usr/include -Wunused-variable -Wuninitialized -fimpl
 #  Direcories where to search for files to compile to .o by implicit rules below, and dependencies defined in rules.mk
 #
 vpath %.o $(obsdir)
-vpath %.f90 ../f90
+vpath %.f90 ../ASKI/f90
 #
 #-----------------------------------------------------------------------
 #  Implicit rule to compile .o files from .f90 files.
@@ -39,8 +58,8 @@ obstring = $(addprefix $(obsdir)/,$(notdir $^))
 #-----------------------------------------------------------------------
 #  Library paths
 #
-BLAS = /usr/lib/libblas.so.3gf
-LAPACK = /usr/lib/liblapack.so.3gf
+BLAS = /usr/lib/libblas.so
+LAPACK = /usr/lib/liblapack.so
 #
 #-------------------------------------------------------------
 #
@@ -48,19 +67,20 @@ LAPACK = /usr/lib/liblapack.so.3gf
 #
 #----------------------------------------------------------------
 #  Include dependencies:
-#  rules.mk and ../rules.mk are a Makefile because it is included. They contain all dependencies of
-#  the .o files. If you change any such dependencies (e.g. by using an additional module
-#  in some program/module), please update files rules.mk , ../rules.mk accordingly.
+#  rules_SPECFEM3D_Cartesian.mk and ../ASKI/rules.mk are Makefiles because they are included. They
+#  contain all dependencies of the .o files. If you change any such dependencies (e.g. by using an
+#  additional module in some program/module), please update files rules_SPECFEM3D_Cartesian.mk , 
+#  ../ASKI/rules.mk accordingly.
 #
 -include rules_SPECFEM3D_Cartesian.mk
--include ../rules.mk
+-include ../ASKI/rules.mk
 #
 #---------------------------------------------------------------
 #
 clean:
 	-rm -f $(bindir)/transformSpecfem3dCartesianSyntheticData
 	-rm -f $(bindir)/transformSpecfem3dCartesianMeasuredData
-	-rm -f $(bindir)/createSpecfem3dFilters
+	-rm -f $(bindir)/convolveWithStf
 	-rm -f $(obsdir)/*
 #
 #----------------------------------------------------------------
@@ -71,24 +91,23 @@ transformSpecfem3dCartesianSyntheticData: %: %.o errorMessage.o seismicNetwork.o
 	seismicEvent.o argumentParser.o string.o realloc.o invgridVtkFile.o eventStationVtkFile.o kernelReferenceModel.o wavefieldPoints.o \
 	inversionGrid.o kernelInvertedModel.o wpVtkFile.o inputParameter.o integrationWeights.o flexibleType.o dateTime.o \
 	parameterCorrelation.o readEventStationFile.o modelParametrization.o geminiEarthModel.o \
-	specfem3dKernelReferenceModel.o geminiWavefieldPoints.o specfem3dWavefieldPoints.o ecartInversionGrid.o \
+	specfem3dKernelReferenceModel.o nexdKernelReferenceModel.o geminiWavefieldPoints.o specfem3dWavefieldPoints.o nexdWavefieldPoints.o ecartInversionGrid.o \
 	specfem3dInversionGrid.o scartInversionGrid.o schunkInversionGrid.o chunksInversionGrid.o vectorPointer.o primitiveTypeEncoding.o \
 	simpleString.o kindDefinitions.o timeUtils.o locatePoint.o streamAccess.o chunkCubedSphere.o externalRadialNodes.o \
-	scart2dGrid.o specfem3dForASKI_mod.o dataModelSpaceInfo.o specfem3dForASKIFiles.o nexdWavefieldPoints.o nexdKernelReferenceModel.o
+	scart2dGrid.o specfem3dForASKI_mod.o dataModelSpaceInfo.o fourierTransform.o specfem3dForASKIFiles.o
 	$(COMPILER) -o $(bindir)/$@ $(obstring) $(BLAS) $(LAPACK)
 
-transformSpecfem3dCartesianMeasuredData: %: %.o errorMessage.o seismicNetwork.o fileUnitHandler.o seismicStation.o asciiDataIO.o \
-	seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o \
-	seismicEvent.o argumentParser.o string.o realloc.o invgridVtkFile.o eventStationVtkFile.o kernelReferenceModel.o wavefieldPoints.o \
-	inversionGrid.o kernelInvertedModel.o wpVtkFile.o inputParameter.o integrationWeights.o flexibleType.o dateTime.o \
-	parameterCorrelation.o readEventStationFile.o modelParametrization.o geminiEarthModel.o \
-	specfem3dKernelReferenceModel.o geminiWavefieldPoints.o specfem3dWavefieldPoints.o ecartInversionGrid.o \
-	specfem3dInversionGrid.o scartInversionGrid.o schunkInversionGrid.o chunksInversionGrid.o vectorPointer.o primitiveTypeEncoding.o \
-	simpleString.o kindDefinitions.o timeUtils.o locatePoint.o streamAccess.o chunkCubedSphere.o externalRadialNodes.o \
-	scart2dGrid.o specfem3dForASKI_mod.o dataModelSpaceInfo.o specfem3dForASKIFiles.o nexdWavefieldPoints.o nexdKernelReferenceModel.o
+transformSpecfem3dCartesianMeasuredData: %: %.o specfem3dForASKI_mod.o errorMessage.o seismicNetwork.o fileUnitHandler.o seismicStation.o asciiDataIO.o \
+	seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o complexKernelFrequency.o mathConstants.o \
+	seismicEvent.o argumentParser.o string.o fourierTransform.o realloc.o flexibleType.o dateTime.o parameterCorrelation.o \
+	readEventStationFile.o inputParameter.o modelParametrization.o primitiveTypeEncoding.o simpleString.o \
+	kindDefinitions.o timeUtils.o
 	$(COMPILER) -o $(bindir)/$@ $(obstring) $(BLAS) $(LAPACK)
 
-createSpecfem3dFilters: %: %.o discreteFourierTransform.o asciiDataIO.o errorMessage.o mathConstants.o realloc.o
+convolveWithStf: %: %.o specfem3dForASKI_mod.o inversionBasics.o seismicEvent.o seismicEventList.o seismicStation.o seismicNetwork.o \
+	componentTransformation.o asciiDataIO.o fileUnitHandler.o argumentParser.o string.o errorMessage.o inputParameter.o fourierTransform.o \
+	parameterCorrelation.o readEventStationFile.o modelParametrization.o mathConstants.o flexibleType.o dateTime.o realloc.o \
+	primitiveTypeEncoding.o simpleString.o kindDefinitions.o timeUtils.o
 	$(COMPILER) -o $(bindir)/$@ $(obstring)
 
-all: transformSpecfem3dCartesianSyntheticData transformSpecfem3dCartesianMeasuredData
+all: transformSpecfem3dCartesianSyntheticData transformSpecfem3dCartesianMeasuredData convolveWithStf

@@ -1,0 +1,44 @@
+THIS IS A VERY BASIC EXTRACT FROM THE GIT REPOSITORY
+https://github.com/geodynamics/specfem3d (master branch)
+OF THE CARTESIAN SPECFEM3D PROGRAM BY   *** 7th november 2015 ***
+SOME FOLDERS LIKE utils, doc ETC. WERE REMOVED TO KEEP THIS COPY SMALL
+
+ON YOUR SYSTEM, YOU NEED TO CONFIGURE AND COMPILE AGAIN, e.g.:
+> ./configure FC=gfortran MPIFC=mpif90
+> make default
+As is required for ASKI, I set USE_SOURCES_RECEIVERS_Z = .true. 
+directly in file setup/constants.h.in, so that calling ./configure
+does not modify this requirement.
+
+THE ORIGINAL FILE "README.md" WAS RENAMED "README.md.original"
+
+Some modifications were applied by me (Florian Schumacher, Ruhr-Universitaet Bochum, Germany, 2015)
+in order to use this SPECFEM3D version 3.0 for ASKI versions 1.0 to 1.2
+(as described by the documentation "EXTEND REGULAR SPECFEM3D" in ../README.md and
+section 1.4 of ../doc/SPECFEM3D_Cartesian_for_ASKI_manual.pdf)
+Additionally, two important modifications were applied, which were commited
+to the devel branch on 3 september 2015, or are about to be commited by the 
+developers team  (see comments by "FS FS"):
+1) src/specfem3D/setup_sources_receivers.f90 , subroutine setup_sources(), l.180 :
+   removing "USE_FORCE_POINT_SOURCE .or." from the if-clause, i.e. execute
+   (re)definition of t0 only in case of USE_RICKER_TIME_FUNCTION == .true.
+2) src/specfem3D/compute_add_sources_viscoelastic.f90 :
+   always call function comp_source_time_function_gauss() with half duration
+   hdur_gaussian(isource) instead of fixed value of 5.d0*DT
+
+
+All modifications were applied 2015 under the terms of the GNU General 
+Public License version 2 (or any higher version, at your option)
+as published by the Free Software Foundation. 
+The modifications are distributed in the hope that they will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+Please also refer to the manual ../doc/SPECFEM3D_Cartesian_for_ASKI_manual.pdf
+for documentation of this extension package  SPECFEM3D 3.0 for ASKI 1.0 to 1.2
+
+Florian Schumacher, August 2016, Ruhr-Universitaet Bochum, Germany

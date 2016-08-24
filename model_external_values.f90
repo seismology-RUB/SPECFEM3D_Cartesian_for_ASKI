@@ -1,21 +1,21 @@
 !----------------------------------------------------------------------------
-!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !   2012 Main authors: Dimitri Komatitsch and Jeroen Tromp
 !
-!   This file is part of SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
+!   This file is part of SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2.
 !
-!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are free software: 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2 are free software: 
 !   you can redistribute it and/or modify it under the terms of the GNU 
 !   General Public License as published by the Free Software Foundation, 
 !   either version 2 of the License, or (at your option) any later version.
 !
-!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are distributed in 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2 are distributed in 
 !   the hope that they will be useful, but WITHOUT ANY WARRANTY; without 
 !   even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
 !   PURPOSE.  See the GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
+!   along with SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2.
 !   If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 
@@ -53,16 +53,16 @@
     
 
     ! defined by flag "USE_ASKI_BACKGROUND_MODEL" in Par_file_ASKI, logical "use_ASKI_background_model" indicates
-    ! whether a global 1D background model should be set as defined in file "DATA/ASKI_background_model"
+    ! whether a global 1D background model should be set.
     ! (this will replace the default background model everywhere, before possibly imposing the inverted model)
-    ! If IMPOSE_ASKI_BACKGROUND_MODEL = .true. , file_ASKI_background_model then contains value of
-    ! FILE_ASKI_INVERTED_MODEL, i.e. the model file, relative to DATA/
+    ! If IMPOSE_ASKI_BACKGROUND_MODEL = .true. , file_ASKI_background_model then contains the value of
+    ! FILE_ASKI_BACKGROUND_MODEL, i.e. the model file, relative to DATA/
     logical :: use_ASKI_background_model = .false.
     character(len=MAX_STRING_LEN) :: file_ASKI_background_model = ''
     
     ! Defined by flag "IMPOSE_ASKI_INVERTED_MODEL" in Par_file_ASKI, logical "impose_ASKI_inverted_model" indicates
-    ! whether the ASKI external model should be imposed, as defined in file "DATA/ASKI_inverted_model".
-    ! If IMPOSE_ASKI_INVERTED_MODEL = .true. , file_ASKI_inverted_model then contains value of
+    ! whether the ASKI external model should be imposed.
+    ! If IMPOSE_ASKI_INVERTED_MODEL = .true. , file_ASKI_inverted_model then contains the value of
     ! FILE_ASKI_INVERTED_MODEL, i.e. the model file, relative to DATA/
     logical :: impose_ASKI_inverted_model = .false.
     character(len=MAX_STRING_LEN) :: file_ASKI_inverted_model = ''

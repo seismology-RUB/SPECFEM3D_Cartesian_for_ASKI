@@ -1,4 +1,4 @@
-specfem3dForASKI_mod.o: seismicNetwork.o seismicStation.o realloc.o
-transformSpecfem3dCartesianSyntheticData.o: specfem3dForASKI_mod.o errorMessage.o seismicNetwork.o iterationStepBasics.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o seismicEvent.o argumentParser.o string.o
-transformSpecfem3dCartesianMeasuredData.o: specfem3dForASKI_mod.o errorMessage.o seismicNetwork.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o seismicEvent.o argumentParser.o string.o
-createSpecfem3dFilters.o: discreteFourierTransform.o asciiDataIO.o errorMessage.o
+specfem3dForASKI_mod.o: fourierTransform.o realloc.o seismicNetwork.o seismicStation.o
+convolveWithStf.o: errorMessage.o seismicNetwork.o string.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o argumentParser.o specfem3dForASKI_mod.o componentTransformation.o inputParameter.o seismicEvent.o
+transformSpecfem3dCartesianSyntheticData.o: errorMessage.o seismicNetwork.o iterationStepBasics.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o argumentParser.o discreteFourierTransform.o specfem3dForASKI_mod.o componentTransformation.o mathConstants.o seismicEvent.o string.o
+transformSpecfem3dCartesianMeasuredData.o: errorMessage.o seismicNetwork.o string.o fileUnitHandler.o seismicStation.o asciiDataIO.o seismicEventList.o inversionBasics.o argumentParser.o discreteFourierTransform.o specfem3dForASKI_mod.o componentTransformation.o mathConstants.o complexKernelFrequency.o seismicEvent.o
