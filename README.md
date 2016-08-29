@@ -2,12 +2,13 @@
 
 SPECFEM3D_Cartesian for ASKI, as well as ASKI and some of its components, 
 documentation and examples are available under terms of the 
-[GNU General Public License](LICENSE) (version 2 or higher) 
-via [github](https://github.com/seismology-RUB). 
+[GNU General Public License](https://github.com/seismology-RUB/ASKI/blob/master/LICENSE)
+(version 2 or higher) via [github](https://github.com/seismology-RUB). 
 Please find contact addresses [there](https://github.com/seismology-RUB), or visit 
 http://www.rub.de/aski in case you want to get in touch with the authors. If you 
 encounter any problems installing or using the software, it will be helpful to 
-open (or add to) an "issues" topic at the respective repository on https://github.com/. 
+open (or add to) an "issues" topic at the respective repository on gitHub (e.g.
+[here for the ASKI main package](https://github.com/seismology-RUB/ASKI/issues))
 
 The main author is Florian Schumacher, Ruhr-University Bochum, Germany. 
 
@@ -64,6 +65,7 @@ You need to compile few more ASKI binaries:
   ```
   make all
   ```
+  
   from path `SPECFEM3D_Cartesian_for_ASKI/`.
   
 After that, `ASKI/bin/` should contain the new binaries.
@@ -76,14 +78,15 @@ functionality, you may modify your installation for usage with ASKI in the follo
 This procedure was tested for SPECFEM3D_Cartesian (master branch by 7 Nov 2015), extended by 
 two important modifications which were commited to the devel branch on 3 september 2015, 
 or are about to be commited by the developers team:
+
 1. [src/specfem3D/setup_sources_receivers.f90](specfem3d/src/specfem3D/setup_sources_receivers.f90), 
    subroutine `setup_sources()`, line 180 :<br>
    removing `USE_FORCE_POINT_SOURCE .or.` from the if-clause, i.e. execute
    (re)definition of `t0` only in case of `USE_RICKER_TIME_FUNCTION == .true.`
- 2. [src/specfem3D/compute_add_sources_viscoelastic.f90](specfem3d/src/specfem3D/compute_add_sources_viscoelastic.f90):<br>
-    always call function `comp_source_time_function_gauss()` with half duration `hdur_gaussian(isource)`
-    instead of fixed value of `5.d0*DT`
-    
+2. [src/specfem3D/compute_add_sources_viscoelastic.f90](specfem3d/src/specfem3D/compute_add_sources_viscoelastic.f90):<br>
+   always call function `comp_source_time_function_gauss()` with half duration `hdur_gaussian(isource)`
+   instead of fixed value of `5.d0*DT`
+   
 If your regular SPECFEM3D_Cartesian installation has this functionality, you can 
 extend it for ASKI by the following 12 steps:
 
@@ -103,28 +106,33 @@ extend it for ASKI by the following 12 steps:
    ```
    $O/specfem3D_for_ASKI.spec.o \
    ```
+   
    (be aware that the above line *must* start with an actual TAB character in order to conform to the GNU-make syntax)
 7. in `specfem3d/src/specfem3D/prepare_timerun.F90` in subroutine `prepare_timerun`:<br>
    add the following line at the end of the subroutine, before the statistics output is written to main output file by rank 0:
    ```
    call prepare_timerun_ASKI()
    ```
+   
 8. in `specfem3d/src/specfem3D/iterate_time.F90` in subroutine `iterate_time`: <br>
    add the following line just before the "enddo" of the time loop
    ```
    call write_ASKI_output()
    ```
+   
 9. in `specfem3d/src/specfem3D/finalize_simulation.f90` in subroutine `finalize_simulation`: <br>
    add the following line just before the main output file is closed at the end of the subroutine
    ```
    call save_ASKI_output()
    ```
+   
 10. Set `USE_SOURCES_RECVS_Z = .true.` in `specfem3d/setup/constants.h` (or wherever 
     your file constants.h is located).
 11. recompile all SPECFEM3D binaries by executing
     ```
     make
     ```
+    
     in directory `specfem3d/`
 12. in order to produce ASKI output in SPECFEM3D simulations, copy file 
     [SPECFEM3D_Cartesian_for_ASKI/Par_file_ASKI](Par_file_ASKI) to your respective `DATA/` path
