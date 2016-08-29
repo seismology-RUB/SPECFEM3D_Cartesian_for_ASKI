@@ -138,7 +138,7 @@ extend it for ASKI by the following 12 steps:
     [SPECFEM3D_Cartesian_for_ASKI/Par_file_ASKI](Par_file_ASKI) to your respective `DATA/` path
     (which is e.g. `specfem3d/EXAMPLES/my_example/DATA/`, or `specfem3d/DATA/`). This 
     file must be adjusted for any specific simulation (just as all other parameter files), 
-    refer to documentation or examples on how to use it.
+    refer to the [manual](doc/SPECFEM3D_Cartesian_for_ASKI_manual.pdf) on how to use it.
 
 Additionally, you may refer to the [manual](doc/SPECFEM3D_Cartesian_for_ASKI_manual.pdf)
 section 1.4 for details on extending a regular SPECFEM3D code copy for use with ASKI.
