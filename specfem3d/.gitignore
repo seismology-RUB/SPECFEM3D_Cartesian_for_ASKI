@@ -16,6 +16,10 @@ src/decompose_mesh/*.mod
 src/generate_databases/*.mod
 src/meshfem3D/*.mod
 src/specfem3D/*.mod
+src/decompose_mesh/scotch_5.1.12b/bin
+src/decompose_mesh/scotch_5.1.12b/lib
+src/decompose_mesh/scotch_5.1.12b/src/libscotch/y.output
+*.pyc
 
 # documentation
 manual_SPECFEM3D_Cartesian.aux
