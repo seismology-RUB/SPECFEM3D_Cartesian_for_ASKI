@@ -1,21 +1,21 @@
 !----------------------------------------------------------------------------
-!   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !   2012 Main authors: Dimitri Komatitsch and Jeroen Tromp
 !
-!   This file is part of SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
+!   This file is part of SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2.
 !
-!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are free software: 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2 are free software: 
 !   you can redistribute it and/or modify it under the terms of the GNU 
 !   General Public License as published by the Free Software Foundation, 
 !   either version 2 of the License, or (at your option) any later version.
 !
-!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0 are distributed in 
+!   SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2 are distributed in 
 !   the hope that they will be useful, but WITHOUT ANY WARRANTY; without 
 !   even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
 !   PURPOSE.  See the GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with SPECFEM3D_Cartesian version 3.0 and ASKI version 1.0.
+!   along with SPECFEM3D_Cartesian version 3.0 and ASKI version 1.2.
 !   If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 
@@ -313,6 +313,9 @@
   ! local parameters
   character(len=800) :: error_message
   integer :: maxnnodes
+  integer, dimension(1) :: i_array_one_value
+  real, dimension(1) :: r_array_one_value
+  logical, dimension(1) :: l_array_one_value
 
   ! dummy to ignore compiler warnings
   model_ASKI_myrank = myrank
@@ -336,16 +339,29 @@
 
   call synchronize_all()
 
-  call bcast_all_l(use_ASKI_background_model,1)
-  call bcast_all_l(impose_ASKI_inverted_model,1)
+  if(myrank == 0) l_array_one_value(1) = use_ASKI_background_model
+  call bcast_all_l(l_array_one_value,1)
+  if(myrank /= 0) use_ASKI_background_model = l_array_one_value(1)
+
+  if(myrank == 0) l_array_one_value(1) = impose_ASKI_inverted_model
+  call bcast_all_l(l_array_one_value,1)
+  if(myrank /= 0) impose_ASKI_inverted_model = l_array_one_value(1)
 
   if(use_ASKI_background_model) then
 
      call bcast_all_string_world(file_ASKI_background_model)
 
-     call bcast_all_r(mA1Db%zmax,1)
-     call bcast_all_i(mA1Db%nlayers,1)
-     call bcast_all_i(maxnnodes,1)
+     if(myrank == 0) r_array_one_value(1) = mA1Db%zmax
+     call bcast_all_r(r_array_one_value,1)
+     if(myrank /= 0) mA1Db%zmax = r_array_one_value(1)
+
+     if(myrank == 0) i_array_one_value(1) = mA1Db%nlayers
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) mA1Db%nlayers = i_array_one_value(1)
+
+     if(myrank == 0) i_array_one_value(1) = maxnnodes
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) maxnnodes = i_array_one_value(1)
 
      ! allocate for model values if I'm not rank 0
      if(myrank .ne. 0) allocate(mA1Db%nnodes(mA1Db%nlayers),mA1Db%depth(mA1Db%nlayers,maxnnodes), &
@@ -372,14 +388,25 @@
 
      call bcast_all_string_world(file_ASKI_inverted_model)
 
-     call bcast_all_i(model_ASKI_interpolation_type,1)
+     if(myrank == 0) i_array_one_value(1) = model_ASKI_interpolation_type
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) model_ASKI_interpolation_type = i_array_one_value(1)
+
      select case(model_ASKI_interpolation_type)
      case( 2 )
-        call bcast_all_r(model_ASKI_factor_shepard_radius,1)
+        if(myrank == 0) r_array_one_value(1) = model_ASKI_factor_shepard_radius
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) model_ASKI_factor_shepard_radius = r_array_one_value(1)
      end select
 
-     call bcast_all_i(mAc%ncell,1)
-     call bcast_all_i(mAc%max_nnb,1)
+     if(myrank == 0) i_array_one_value(1) = mAc%ncell
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) mAc%ncell = i_array_one_value(1)
+
+     if(myrank == 0) i_array_one_value(1) = mAc%max_nnb
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) mAc%max_nnb = i_array_one_value(1)
+
      if(myrank .ne. 0) then
         allocate(mAc%cc(3,mAc%ncell),mAc%r(mAc%ncell),&
              mAc%nb(mAc%max_nnb+1,mAc%ncell))
@@ -388,16 +415,36 @@
      call bcast_all_r(mAc%r,size(mAc%r))
      call bcast_all_i(mAc%nb,size(mAc%nb))
 
-     call bcast_all_i(model_ASKI_pmtrz,1)
+     if(myrank == 0) i_array_one_value(1) = model_ASKI_pmtrz
+     call bcast_all_i(i_array_one_value,1)
+     if(myrank /= 0) model_ASKI_pmtrz = i_array_one_value(1)
+
      select case (model_ASKI_pmtrz)
      case ( ipmtrz_isoLameSI )
 
-        call bcast_all_r(mAisoL%maxr_rho,1)
-        call bcast_all_r(mAisoL%maxr_lambda,1)
-        call bcast_all_r(mAisoL%maxr_mu,1)
-        call bcast_all_i(mAisoL%nval_rho,1)
-        call bcast_all_i(mAisoL%nval_lambda,1)
-        call bcast_all_i(mAisoL%nval_mu,1)
+        if(myrank == 0) r_array_one_value(1) = mAisoL%maxr_rho
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoL%maxr_rho = r_array_one_value(1)
+
+        if(myrank == 0) r_array_one_value(1) = mAisoL%maxr_lambda
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoL%maxr_lambda = r_array_one_value(1)
+
+        if(myrank == 0) r_array_one_value(1) = mAisoL%maxr_mu
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoL%maxr_mu = r_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoL%nval_rho
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoL%nval_rho = i_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoL%nval_lambda
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoL%nval_lambda = i_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoL%nval_mu
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoL%nval_mu = i_array_one_value(1)
 
         if(myrank .ne. 0) then
            if(mAisoL%nval_rho>0) allocate(mAisoL%idx_rho(mAisoL%nval_rho),&
@@ -423,12 +470,29 @@
 
      case ( ipmtrz_isoVelocitySI )
 
-        call bcast_all_r(mAisoV%maxr_rho,1)
-        call bcast_all_r(mAisoV%maxr_vp,1)
-        call bcast_all_r(mAisoV%maxr_vs,1)
-        call bcast_all_i(mAisoV%nval_rho,1)
-        call bcast_all_i(mAisoV%nval_vp,1)
-        call bcast_all_i(mAisoV%nval_vs,1)
+        if(myrank == 0) r_array_one_value(1) = mAisoV%maxr_rho
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoV%maxr_rho = r_array_one_value(1)
+
+        if(myrank == 0) r_array_one_value(1) = mAisoV%maxr_vp
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoV%maxr_vp = r_array_one_value(1)
+
+        if(myrank == 0) r_array_one_value(1) = mAisoV%maxr_vs
+        call bcast_all_r(r_array_one_value,1)
+        if(myrank /= 0) mAisoV%maxr_vs = r_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoV%nval_rho
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoV%nval_rho = i_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoV%nval_vp
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoV%nval_vp = i_array_one_value(1)
+
+        if(myrank == 0) i_array_one_value(1) = mAisoV%nval_vs
+        call bcast_all_i(i_array_one_value,1)
+        if(myrank /= 0) mAisoV%nval_vs = i_array_one_value(1)
 
         if(myrank .ne. 0) then
            if(mAisoV%nval_rho>0) allocate(mAisoV%idx_rho(mAisoV%nval_rho),&

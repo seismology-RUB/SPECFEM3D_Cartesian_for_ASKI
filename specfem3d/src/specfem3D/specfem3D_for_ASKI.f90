@@ -1,20 +1,20 @@
 !----------------------------------------------------------------------------
-!   Copyright 2013 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+!   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 !
-!   This file is part of SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3.
+!   This file is part of SPECFEM3D_Cartesian version 2.1 and ASKI version 1.2.
 !
-!   SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are free software: 
+!   SPECFEM3D_Cartesian version 2.1 and ASKI version 1.2 are free software: 
 !   you can redistribute it and/or modify it under the terms of the GNU 
 !   General Public License as published by the Free Software Foundation, 
 !   either version 2 of the License, or (at your option) any later version.
 !
-!   SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3 are distributed in 
+!   SPECFEM3D_Cartesian version 2.1 and ASKI version 1.2 are distributed in 
 !   the hope that they will be useful, but WITHOUT ANY WARRANTY; without 
 !   even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
 !   PURPOSE.  See the GNU General Public License for more details.
 !
 !   You should have received a copy of the GNU General Public License
-!   along with SPECFEM3D_Cartesian version 2.1 and ASKI version 0.3.
+!   along with SPECFEM3D_Cartesian version 2.1 and ASKI version 1.2.
 !   If not, see <http://www.gnu.org/licenses/>.
 !----------------------------------------------------------------------------
 subroutine prepare_timerun_ASKI()
@@ -26,6 +26,7 @@ subroutine prepare_timerun_ASKI()
   implicit none
 
   integer :: iproc
+  integer, dimension(1) :: i_array_one_value
 
   call read_Par_file_ASKI()
 
@@ -61,7 +62,8 @@ subroutine prepare_timerun_ASKI()
      ASKI_np_local_all(1) = ASKI_np_local ! this is me, rank 0
      do iproc = 1,NPROC-1
         ! receive ASKI_np_local from rank iproc
-        call recv_i_t(ASKI_np_local_all(iproc+1),1,iproc)
+        call recv_i_t(i_array_one_value,1,iproc)
+        ASKI_np_local_all(iproc+1) = i_array_one_value(1)
      end do ! iproc
 
      if(sum(ASKI_np_local_all) .le. 0) &
@@ -69,7 +71,8 @@ subroutine prepare_timerun_ASKI()
 
   else ! (myrank == 0)
      ! send ASKI_np_local to rank 0
-     call send_i_t(ASKI_np_local,1,0)
+     i_array_one_value(1) = ASKI_np_local
+     call send_i_t(i_array_one_value,1,0)
 
   end if ! (myrank == 0)
 
