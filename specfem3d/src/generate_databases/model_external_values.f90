@@ -53,16 +53,16 @@
     
 
     ! defined by flag "USE_ASKI_BACKGROUND_MODEL" in Par_file_ASKI, logical "use_ASKI_background_model" indicates
-    ! whether a global 1D background model should be set as defined in file "DATA/ASKI_background_model"
+    ! whether a global 1D background model should be set.
     ! (this will replace the default background model everywhere, before possibly imposing the inverted model)
-    ! If IMPOSE_ASKI_BACKGROUND_MODEL = .true. , file_ASKI_background_model then contains value of
-    ! FILE_ASKI_INVERTED_MODEL, i.e. the model file, relative to DATA/
+    ! If IMPOSE_ASKI_BACKGROUND_MODEL = .true. , file_ASKI_background_model then contains the value of
+    ! FILE_ASKI_BACKGROUND_MODEL, i.e. the model file, relative to DATA/
     logical :: use_ASKI_background_model = .false.
     character(len=MAX_STRING_LEN) :: file_ASKI_background_model = ''
     
     ! Defined by flag "IMPOSE_ASKI_INVERTED_MODEL" in Par_file_ASKI, logical "impose_ASKI_inverted_model" indicates
-    ! whether the ASKI external model should be imposed, as defined in file "DATA/ASKI_inverted_model".
-    ! If IMPOSE_ASKI_INVERTED_MODEL = .true. , file_ASKI_inverted_model then contains value of
+    ! whether the ASKI external model should be imposed.
+    ! If IMPOSE_ASKI_INVERTED_MODEL = .true. , file_ASKI_inverted_model then contains the value of
     ! FILE_ASKI_INVERTED_MODEL, i.e. the model file, relative to DATA/
     logical :: impose_ASKI_inverted_model = .false.
     character(len=MAX_STRING_LEN) :: file_ASKI_inverted_model = ''
