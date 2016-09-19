@@ -83,7 +83,7 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
 #                      (slightly more memory efficient than GOERTZEL_STANDARD)
 # GOERTZEL_STANDARD: using Goertzel's algorithm, only half the number of multiplications compared with EXPLICIT_SUMMATION
 #                    -> BUT overall speed-up compared with EXPLICIT_SUMMATION is not noticeable for small tested examples
-  ASKI_DFT_method = GOERTZEL_STANDARD
+  ASKI_DFT_method = EXPLICIT_SUMMATION
 
 # Choose precision of Discrete Fourier Transform. If there is enough memory available, it is highly recommended
 # to use ASKI_DFT_double = .true. in which case double precision spectral values are hold in memory (single
