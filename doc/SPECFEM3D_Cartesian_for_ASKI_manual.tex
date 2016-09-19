@@ -1120,8 +1120,9 @@ two values are supported:
   \ASKI{} developer's manual, section on adding support for new forward codes, subsection on choosing a method
   of discrete Fourier transform); 
   compared with \lcode{EXPLICIT_SUMMATION} requires only half the number of multiplications for Fourier 
-  transform operations. However, the overall performance improvement might turn out small as these 
-  operations comprise only a part of the additional operations done when producing output for \ASKI{}.
+  transform operations. \emph{However}, the overall performance improvement is not noticeable for small tested examples, as these 
+  operations comprise only a part of the additional operations done when producing output for \ASKI{} and other
+  things like array/memory access also play an important role.
 \end{itemize}
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_DFT_double}}

@@ -82,7 +82,7 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
 # EXPLICIT_SUMMATION : on-the-fly summation of complex values s(t)*exp^(-i*2pi*f*t) 
 #                      (slightly more memory efficient than GOERTZEL_STANDARD)
 # GOERTZEL_STANDARD: using Goertzel's algorithm, only half the number of multiplications compared with EXPLICIT_SUMMATION
-#                    -> BUT overall speed-up compared with EXPLICIT_SUMMATION (though noticeable) might turn out small 
+#                    -> BUT overall speed-up compared with EXPLICIT_SUMMATION is not noticeable for small tested examples
   ASKI_DFT_method = GOERTZEL_STANDARD
 
 # Choose precision of Discrete Fourier Transform. If there is enough memory available, it is highly recommended
