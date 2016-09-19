@@ -756,7 +756,7 @@ Executing \lcode{transformSpecfem3dCartesianMeasuredData} (without arguments)
 will print a help message how to use it and will list the required positional 
 arguments and mandatory options and optional options (described in more detail in the following). 
 Note that only necessary things
-will be read/initialized on the basis of the ASKI main parameter file given (e.g.\ everything not needed, 
+will be read/initialized on the basis of the \ASKI{} main parameter file given (e.g.\ everything not needed, 
 like integration weights, inversion grid, will \emph{not} be initialized at this point, i.e.\ those
 quantities are not required to exist already! Hence, you may use this executable before starting to solve
 the forward problem in the first iteration of \ASKI{} FWI).
@@ -1093,7 +1093,7 @@ takes care about, which wavefield to store and which source wavelet to deconvolv
 displacement spectra w.r.t.\ a Dirac impulse time function (if \lcode{ASKI_DECONVOLVE_STF = .true.}).
 
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-\subsection{Frequency discretization}
+\subsection{Frequency discretization and Fourier transform}
 %+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 The double precision \lcode{df} [Hz] and integer values \lcode{jf} have the following meaning:
 The spectra are saved for all frequencies \lcode{f = (jf)*df} [Hz].
@@ -1105,6 +1105,24 @@ an inverse FT in case of time-domain sensitivity kernel computation, we need to 
 as \lcode{ASKI_df = 1/length_of_time_series} and suitably high frequency indices (dependent on frequency content).
 Otherwise we could lose periodicity (if in \lcode{exp(-i2pi(k)(n)/N)} \lcode{N} is no integer, these are no 
 roots of 1 anymore). The spectra are saved for frequencies \lcode{f = (ASKI_jf)*ASKI_df} (\lcode{ASKI_nf} many).
+%----------------------------------------------------------------------
+\subsubsection*{\lcode{ASKI_DFT_method}}
+%----------------------------------------------------------------------
+\lcode{ASKI_DFT_method} defines which numerical method is used to do the on-the-fly Fourier transform of wavefield
+and strain components (at the wavefield points) in order to produce spectral output for \ASKI{}. At the moment, 
+two values are supported:
+\begin{itemize}
+\item \lcode{ASKI_DFT_method = EXPLICIT_SUMMATION} \\
+  on-the-fly summation of complex values $s(t)\,e^{-i\,2\pi\,f\,t}$ (where $s(t)$ represents displacement or strain time series);
+  slightly more memory efficient than \lcode{GOERTZEL_STANDARD}
+\item \lcode{ASKI_DFT_method = GOERTZEL_STANDARD} \\
+  using Goertzel's algorithm (as in \cite{Goertzel58}, only adapted for time-forward time series, also compare
+  \ASKI{} developer's manual, section on adding support for new forward codes, subsection on choosing a method
+  of discrete Fourier transform); 
+  compared with \lcode{EXPLICIT_SUMMATION} requires only half the number of multiplications for Fourier 
+  transform operations. However, the overall performance improvement might turn out small as these 
+  operations comprise only a part of the additional operations done when producing output for \ASKI{}.
+\end{itemize}
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_DFT_double}}
 %----------------------------------------------------------------------
@@ -1126,12 +1144,12 @@ total time for which the hanning taper will be applied at the tail of the time s
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_type_inversion_grid}}
 %----------------------------------------------------------------------
-ASKI supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECFEM3D}.
+\ASKI{} supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECFEM3D}.
 \lcode{ASKI_type_inversion_grid = }
 \begin{enumerate}
 \item (\lcode{TYPE_INVERSION_GRID = schunkInversionGrid}) \\ 
   NOT TO BE USED WITH SPECFEM3D Cartesian!\\
-  ASKI internal, but SPECFEM independent simple spherical inverison grid
+  \ASKI{} internal, but SPECFEM independent simple spherical inverison grid
 \item (\lcode{TYPE_INVERSION_GRID = scartInversionGrid})\\
   \ASKI{} internal, but \lcode{SPECFEM} independent cartesian inversion grid:\\
   The values for \ASKI{} output are stored at all inner GLL points of spectral elements which lie
@@ -1151,7 +1169,7 @@ ASKI supports several types of inversion grids for \lcode{FORWARD_METHOD = SPECF
   wavefield points accordingly (\lcode{do k=1,NGLLZ;} \lcode{do j=1,NGLLY;} \lcode{do i=1,NGLLX;} \lcode{ip=ip+1 ....})
 \item (\lcode{TYPE_INVERSION_GRID = chunksInversionGrid}) \\ 
   NOT TO BE USED WITH SPECFEM3D Cartesian!\\
-  ASKI internal, but SPECFEM independent more elaborate spherical inverison grid
+  \ASKI{} internal, but SPECFEM independent more elaborate spherical inverison grid
 \end{enumerate}
 %----------------------------------------------------------------------
 \subsubsection*{\lcode{ASKI_(cw)(xyz), ASKI_rot_(XYZ)}}

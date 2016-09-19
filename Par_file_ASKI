@@ -64,31 +64,39 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
   ASKI_DECONVOLVE_STF = .true.
 
 #------------------------------------------------------------------------------------
-# FREQUENCY DISCRETIZATION
+# FREQUENCY DISCRETIZATION AND FOURIER TRANSFORM
 #
 #   the double precision df[Hz] and integer values jf have the following meaning:
 #   the spectra are saved for all frequencies f = (jf)*df [Hz]
 #------------------------------------------------------------------------------------
 
-# predefined df, that is used to evaluate spectrum (in case we want to do an inverse FT, we need to choose with care 
+# Predefined frequency step df, that is used to evaluate spectrum (in case we want to do an inverse FT, we need to choose with care
 # df=1/length_of_time_series and suitably high frequency indices (dependent on frequency content), as
-# we could lose periodicity (if in exp^(-i2pi(k)(n)/N) "N" is no integer, these are no roots of 1 anymore))
-# save the spectra for frequencies f = (ASKI_jf)*ASKI_df (ASKI_nf many)
+# we could lose periodicity (if in exp^(-i2pi(k)(n)/N) "N" is no integer, these are no roots of 1 anymore)).
+# Save the spectra for frequencies f = (ASKI_jf)*ASKI_df (ASKI_nf many)
   ASKI_df = 10.0
   ASKI_nf = 23
   ASKI_jf = 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33
 
-# choose precision of Discrete Fourier Transform, if there is enough memory available, it is highly recommended
-# to use ASKI_DFT_double = .true. in which case double complex spectra are hold in memory (single precision is 
-# written to file, though, but less roundoffs during transformation)
-# otherwise choose ASKI_DFT_double = .false. in which case single precision spectra will be used in memory
-# the transformation coefficients exp^(-i*2pi*f*t) are always in double complex precision!
+# Choose the method of Discrete Fourier Transform:
+# EXPLICIT_SUMMATION : on-the-fly summation of complex values s(t)*exp^(-i*2pi*f*t) 
+#                      (slightly more memory efficient than GOERTZEL_STANDARD)
+# GOERTZEL_STANDARD: using Goertzel's algorithm, only half the number of multiplications compared with EXPLICIT_SUMMATION
+#                    -> BUT overall speed-up compared with EXPLICIT_SUMMATION (though noticeable) might turn out small 
+  ASKI_DFT_method = GOERTZEL_STANDARD
+
+# Choose precision of Discrete Fourier Transform. If there is enough memory available, it is highly recommended
+# to use ASKI_DFT_double = .true. in which case double precision spectral values are hold in memory (single
+# precision is written to file, though, but less roundoffs during summation).
+# Otherwise choose ASKI_DFT_double = .false. in which case single precision spectral values will be used in memory.
+# The wavefield point-independent transformation coefficients exp^(-i*2pi*f*t) (or values Wr in case of Goertzel)
+# are always in double precision!
   ASKI_DFT_double = .true.
 
-# decide whether the (oversampled, noisy, ...) time series should be tapered by a hanning taper (on tail)
-# before (i.e. while) applying the discrete fourier transform
-# if ASKI_DFT_apply_taper = .true. the value of ASKI_DFT_taper_percentage (between 0.0 and 1.0) defines the amount of
-# total time for which the hanning taper will be applied at the tail of the time series
+# Decide whether the (oversampled, noisy, ...) time series should be tapered by a hanning taper (on tail)
+# before (i.e. on-the-fly while) applying the discrete fourier transform.
+# If ASKI_DFT_apply_taper = .true. the value of ASKI_DFT_taper_percentage (between 0.0 and 1.0) defines the amount of
+# total time for which the hanning taper will be applied at the tail of the time series.
   ASKI_DFT_apply_taper = .true.
   ASKI_DFT_taper_percentage = 0.05
 

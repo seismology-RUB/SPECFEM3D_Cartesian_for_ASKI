@@ -9,14 +9,14 @@
 # but at the boundaries of the inversion domain it will smooth out to the existing model)
 
 # USE_ASKI_BACKGROUND_MODEL indicates whether SPECFEM3D_Cartesian should use the 1D reference model as defined in
-# file given by character string FILE_ASKI_BACKGROUND_MODEL , relative to "DATA/" .
+# the file given by character string FILE_ASKI_BACKGROUND_MODEL , relative to "DATA/" .
 # (will simply overwrite model values on all GLL points, dependent on depth (or rather z). THIS MODEL WILL
 # NOT AFFECT THE MESHING OF DISCONTINUITIES ETC.!!)
 USE_ASKI_BACKGROUND_MODEL = .false.
 FILE_ASKI_BACKGROUND_MODEL = 
 
 # IMPOSE_ASKI_INVERTED_MODEL indicates whether SPECFEM3D_Cartesian should impose the ASKI inverted model as
-# defined in file given by character string FILE_ASKI_INVERTED_MODEL , relative to "DATA/" .
+# defined in the file given by character string FILE_ASKI_INVERTED_MODEL , relative to "DATA/" .
 # This model will be set in the region of the inversion grid, where it was derived
 # interpolation type can be either shepard_standard or shepard_factor_radius . shepard_standard is the same as 
 # shepard_factor_radius with factor_shepard_radius = 2.0 
@@ -64,31 +64,39 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
   ASKI_DECONVOLVE_STF = .true.
 
 #------------------------------------------------------------------------------------
-# FREQUENCY DISCRETIZATION
+# FREQUENCY DISCRETIZATION AND FOURIER TRANSFORM
 #
 #   the double precision df[Hz] and integer values jf have the following meaning:
 #   the spectra are saved for all frequencies f = (jf)*df [Hz]
 #------------------------------------------------------------------------------------
 
-# predefined df, that is used to evaluate spectrum (in case we want to do an inverse FT, we need to choose with care 
+# Predefined frequency step df, that is used to evaluate spectrum (in case we want to do an inverse FT, we need to choose with care
 # df=1/length_of_time_series and suitably high frequency indices (dependent on frequency content), as
-# we could lose periodicity (if in exp^(-i2pi(k)(n)/N) "N" is no integer, these are no roots of 1 anymore))
-# save the spectra for frequencies f = (ASKI_jf)*ASKI_df (ASKI_nf many)
+# we could lose periodicity (if in exp^(-i2pi(k)(n)/N) "N" is no integer, these are no roots of 1 anymore)).
+# Save the spectra for frequencies f = (ASKI_jf)*ASKI_df (ASKI_nf many)
   ASKI_df = 2
   ASKI_nf = 1
   ASKI_jf = 18
 
-# choose precision of Discrete Fourier Transform, if there is enough memory available, it is highly recommended
-# to use ASKI_DFT_double = .true. in which case double complex spectra are hold in memory (single precision is 
-# written to file, though, but less roundoffs during transformation)
-# otherwise choose ASKI_DFT_double = .false. in which case single precision spectra will be used in memory
-# the transformation coefficients exp^(-i*2pi*f*t) are always in double complex precision!
+# Choose the method of Discrete Fourier Transform:
+# EXPLICIT_SUMMATION : on-the-fly summation of complex values s(t)*exp^(-i*2pi*f*t) 
+#                      (slightly more memory efficient than GOERTZEL_STANDARD)
+# GOERTZEL_STANDARD: using Goertzel's algorithm, only half the number of multiplications compared with EXPLICIT_SUMMATION
+#                    -> BUT overall speed-up compared with EXPLICIT_SUMMATION (though noticeable) might turn out small 
+  ASKI_DFT_method = GOERTZEL_STANDARD
+
+# Choose precision of Discrete Fourier Transform. If there is enough memory available, it is highly recommended
+# to use ASKI_DFT_double = .true. in which case double precision spectral values are hold in memory (single
+# precision is written to file, though, but less roundoffs during summation).
+# Otherwise choose ASKI_DFT_double = .false. in which case single precision spectral values will be used in memory.
+# The wavefield point-independent transformation coefficients exp^(-i*2pi*f*t) (or values Wr in case of Goertzel)
+# are always in double precision!
   ASKI_DFT_double = .true.
 
-# decide whether the (oversampled, noisy, ...) time series should be tapered by a hanning taper (on tail)
-# before (i.e. while) applying the discrete fourier transform
-# if ASKI_DFT_apply_taper = .true. the value of ASKI_DFT_taper_percentage (between 0.0 and 1.0) defines the amount of
-# total time for which the hanning taper will be applied at the tail of the time series
+# Decide whether the (oversampled, noisy, ...) time series should be tapered by a hanning taper (on tail)
+# before (i.e. on-the-fly while) applying the discrete fourier transform.
+# If ASKI_DFT_apply_taper = .true. the value of ASKI_DFT_taper_percentage (between 0.0 and 1.0) defines the amount of
+# total time for which the hanning taper will be applied at the tail of the time series.
   ASKI_DFT_apply_taper = .true.
   ASKI_DFT_taper_percentage = 0.05
 
@@ -97,8 +105,8 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
 #
 # ASKI supports several types of inversion grids for FORWARD_METHOD = SPECFEM3D:
 #
-#   ASKI_type_inversion_grid = 1, (TYPE_INVERSION_GRID = ccsInversionGrid) NOT TO BE USED WITH SPECFEM3D Cartesian!
-#      ASKI internal, but SPECFEM independent spherical inverison grid
+#   ASKI_type_inversion_grid = 1, (TYPE_INVERSION_GRID = schunkInversionGrid) NOT TO BE USED WITH SPECFEM3D Cartesian!
+#      ASKI internal, but SPECFEM independent simple spherical inverison grid
 #
 #   ASKI_type_inversion_grid = 2, (TYPE_INVERSION_GRID = scartInversionGrid)
 #      ASKI internal, but SPECFEM independent cartesian inversion grid:
@@ -120,6 +128,9 @@ ASKI_INVERTED_MODEL_FACTOR_SHEPARD_RADIUS = 1.0
 #      additionally store the jacobians for all wavefield points
 #      assume ncell = ntot_wp/(NGLLX*NGLLY*NGLLY) as the number of inversion grid cells, and the order of 
 #      wavefield points accordingly (do k=1,NGLLZ; do j=1,NGLLY; do i=1,NGLLX; ip=ip+1 ....)
+#
+#   ASKI_type_inversion_grid = 5, (TYPE_INVERSION_GRID = chunksInversionGrid) NOT TO BE USED WITH SPECFEM3D Cartesian!
+#      ASKI internal, but SPECFEM independent more elaborate spherical inverison grid
 #
 # Dependent on ASKI_type_inversion_grid, (a selection of) the following parameters may be used to define a volume 
 # within which wavefield points are searched for:

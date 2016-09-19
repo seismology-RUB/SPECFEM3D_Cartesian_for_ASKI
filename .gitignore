@@ -1,0 +1,14 @@
+# documentation
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.aux
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.bbl
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.blg
+doc/*.log
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.out
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.pdf
+doc/SPECFEM3D_Cartesian_for_ASKI_manual.toc
+
+# Compiled Python files
+*.pyc
+
+# Trash files
+*~

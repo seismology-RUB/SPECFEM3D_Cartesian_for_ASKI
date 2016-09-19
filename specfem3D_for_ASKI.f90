@@ -28,11 +28,16 @@ subroutine prepare_timerun_ASKI()
   integer :: iproc
   integer, dimension(1) :: i_array_one_value
 
+  ! before doing anything else, nullify all involved pointers (just to be save for deallocation below)
+  nullify(ASKI_Goertzel_U0_local_double,ASKI_Goertzel_U1_local_double,ASKI_Goertzel_U2_local_double,&
+       ASKI_Goertzel_U0_local_single,ASKI_Goertzel_U1_local_single,ASKI_Goertzel_U2_local_single)
+
   call read_Par_file_ASKI()
 
   if (.not.COMPUTE_ASKI_OUTPUT) return
 
-  if (CUSTOM_REAL /= SIZE_REAL) call exit_MPI_without_rank('only single precision supported for ASKI output')
+  if (CUSTOM_REAL /= SIZE_REAL) call exit_MPI_without_rank('only single-precision SPECFEM simulations '//&
+       'supported for ASKI output (i.e. CUSTOM_MPI_TYPE must be MPI_REAL in precision.h)')
 
   if (ASKI_DECONVOLVE_STF.and.(.not.PRINT_SOURCE_TIME_FUNCTION)) call exit_MPI_without_rank('PRINT_SOURCE_TIME_FUNCTION '//&
        'must be set to .true. in Par_file in case of ASKI_DECONVOLVE_STF = .true.')
@@ -229,6 +234,17 @@ subroutine read_Par_file_ASKI()
   read(val,*,iostat=ios) ASKI_jf
   if(ios/=0) call exit_MPI_without_rank("invalid value for parameter 'ASKI_jf' in '"&
        //trim(IN_DATA_FILES)//"Par_file_ASKI'")
+
+  ! ASKI_DFT_method
+  call get_value_Par_file_ASKI('ASKI_DFT_method',val,key_parfile,val_parfile,npar)
+  ASKI_DFT_method = val(1:length_ASKI_DFT_method)
+  select case(ASKI_DFT_method)
+  case('EXPLICIT_SUMMATION','GOERTZEL_STANDARD')
+     ! OK, do nothing
+  case default
+     call exit_MPI_without_rank("invalid value '"//trim(ASKI_DFT_method)//"' for parameter 'ASKI_DFT_method' in '"//&
+       trim(IN_DATA_FILES)//"Par_file_ASKI': only values 'EXPLICIT_SUMMATION' and 'GOERTZEL_STANDARD' are supported")
+  end select
 
   ! ASKI_DFT_double
   call get_value_Par_file_ASKI('ASKI_DFT_double',val,key_parfile,val_parfile,npar)
@@ -598,7 +614,7 @@ subroutine prepare_ASKI_output()
   implicit none
 
   double precision :: wtaper!,nefactors
-  integer :: jt,jf,IOASKI,ios,ntaper
+  integer :: jt,jf,IOASKI,ios
   logical :: file_exists
   character(len=509) :: filename
 
@@ -661,58 +677,87 @@ subroutine prepare_ASKI_output()
   if(ASKI_nf < 1) call exit_MPI_without_rank('ASKI_nf in Par_file_ASKI must be a strictly positive number')
   if(size(ASKI_jf) /= ASKI_nf) call exit_MPI_without_rank('size(ASKI_jf) must equal ASKI_nf in Par_file_ASKI')
 
-  ! the variable ASKI_efactors_tapered is only used by procs which compute any ASKI output at local wavefield points 
-  ! ADDITIONALLY it is used by rank 0 below in deconvolve_stf_from_ASKI_output even if it does 
-  ! not have local wavefield points
+  ! the variables ASKI_efactors and ASKI_Goertzel_Wr are only used by procs which compute any ASKI output 
+  ! at local wavefield points 
+  ! ADDITIONALLY they are used by rank 0 below in deconvolve_stf_from_ASKI_output even if it does 
+  ! not have local wavefield points (therefore DO NOT incorporate tapering into efactors!)
   if (ASKI_np_local .gt. 0 .or. myrank == 0) then
 
      ! if you plan on doing an inverse fourier transform afterwards, ASKI_df should be chosen 
      ! in a way, that ASKI_df = 1/(NSTEP-1)*DT (1/length_of_timeseries), 
-     ! resulting in N = NSTEP-1 in the formula if exp^(-i2pi(k)(n)/N) 
-     ! which matches the general rule of computing the discrete fourier transform
-     ! if N is not integer, the forward fourier transform works out fine, but it is in general
+     ! resulting in N = NSTEP-1 in the formula if exp^(-i2pi(k)(n)/N)
+     ! which matches the general rule of computing the discrete fourier transform.
+     ! If N is not integer, the forward fourier transform works out fine, but it is in general
      ! problematic to do an inverse fourier transform afterwards, as the exp^(...) are no roots of 1 anymore
 !!$     nefactors = 1./(ASKI_df*DT)
 
-     ! allocate and compute efactors
-     allocate(ASKI_efactors_tapered(ASKI_nf,NSTEP))
-     do jt = 1,NSTEP
+     select case(ASKI_DFT_method)
+     case('EXPLICIT_SUMMATION')
+        ! allocate and compute efactors
+        allocate(ASKI_efactors(ASKI_nf,NSTEP))
+        do jt = 1,NSTEP
+           do jf = 1,ASKI_nf
+!!$           ASKI_efactors(jf,jt) = cexp(-sngl(TWO_PI)*cmplx(0.,1.)*ASKI_jf(jf)*(jt-1)/sngl(nefactors))*DT
+              ASKI_efactors(jf,jt) = exp(-(0.d0,1.d0)*TWO_PI*(ASKI_jf(jf)*ASKI_df)*(dble(jt-1)*DT))*DT
+           end do ! jf
+        end do ! jt
+     case('GOERTZEL_STANDARD')
+        allocate(ASKI_Goertzel_Wr(ASKI_nf),ASKI_Goertzel_Wi(ASKI_nf))
         do jf = 1,ASKI_nf
-!!$           ASKI_efactors_tapered(jf,jt) = cexp(-sngl(TWO_PI)*cmplx(0.,1.)*ASKI_jf(jf)*(jt-1)/sngl(nefactors))*DT
-           ASKI_efactors_tapered(jf,jt) = exp(-(0.d0,1.d0)*TWO_PI*(ASKI_jf(jf)*ASKI_df)*(dble(jt-1)*DT))*DT
-        end do ! jf
-!!$        ! include hanning taper in efactors array, in order to save multiplications in routine compute_and_write_ASKI_output
-!!$        if(jt.gt.(NSTEP-ntaper)) ASKI_efactors_tapered(:,jt) = &
-!!$             ASKI_efactors_tapered(:,jt)*(0.5*(1.-cos(PI*DT*(NSTEP-jt)/wtaper)))
-     end do ! jt
+           ! Also compare ASKI developers manual, section 4.5:
+           ! In order to account for the time-reversal in Goertzel's algorithm, choose
+           ! x = +omega*dt for computing Wr = 2*cos(x)
+           ASKI_Goertzel_Wr(jf) = 2.d0 * cos( TWO_PI*ASKI_jf(jf)*ASKI_df*DT )
+           ASKI_Goertzel_Wi(jf) = sin( TWO_PI*ASKI_jf(jf)*ASKI_df*DT )
+        end do
+     end select
 
      if(ASKI_DFT_apply_taper) then
         if(ASKI_DFT_taper_percentage<0.d0 .or. ASKI_DFT_taper_percentage>1.d0) &
              call exit_MPI_without_rank('ASKI_DFT_taper_percentage must be between 0.0 and 1.0 in Par_file_ASKI')
         ! set hanning taper parameters, taper the last ASKI_DFT_taper_percentage of the time series
         wtaper = DT*dble(NSTEP-1)*ASKI_DFT_taper_percentage
-        ntaper = wtaper/DT
+        ASKI_DFT_ntaper_start = NSTEP - int(wtaper/DT) + 1 ! 2 <= ASKI_DFT_ntaper_start <= NSTEP+1
 
-        if(ntaper>0) then
-           do jt = NSTEP-ntaper+1,NSTEP
-              ASKI_efactors_tapered(:,jt) = &
-!!$                   ASKI_efactors_tapered(:,jt)*(0.5*(1.-cos(PI*DT*(NSTEP-jt)/wtaper)))
-                   ASKI_efactors_tapered(:,jt)*(0.5d0*(1.d0-cos(PI*DT*dble(NSTEP-jt)/wtaper)))
+        if(ASKI_DFT_ntaper_start<=NSTEP) then
+           allocate(ASKI_DFT_taper_values(ASKI_DFT_ntaper_start:NSTEP))
+           do jt = ASKI_DFT_ntaper_start,NSTEP
+              ASKI_DFT_taper_values(jt) = 0.5d0*(1.d0-cos(PI*DT*dble(NSTEP-jt)/wtaper))
            end do ! jt
-        end if ! ntaper>0
+        else ! ASKI_DFT_ntaper_start<=NSTEP
+           ASKI_DFT_apply_taper = .false.
+        end if ! ASKI_DFT_ntaper_start<=NSTEP
      end if ! ASKI_DFT_apply_taper
   end if ! ASKI_np_local .gt. 0 .or. myrank == 0
 
   ! the following allocations are only needed for procs which compute any ASKI output at local wavefield points 
   if (ASKI_np_local .gt. 0) then
-     ! allocate for spectra, first rank: 3 underived components, plus 6 strains = 9
-     if(ASKI_DFT_double) then
-        allocate(ASKI_spectra_local_double(9,ASKI_nf,ASKI_np_local))
-        ASKI_spectra_local_double = (0.d0,0.d0)
-     else
-        allocate(ASKI_spectra_local_single(9,ASKI_nf,ASKI_np_local))
-        ASKI_spectra_local_single = (0.d0,0.d0)
-     end if
+     select case(ASKI_DFT_method)
+     case('EXPLICIT_SUMMATION')
+        ! allocate for spectra, first rank: 3 underived components, plus 6 strains = 9
+        if(ASKI_DFT_double) then
+           allocate(ASKI_spectra_local_double(9,ASKI_nf,ASKI_np_local))
+           ASKI_spectra_local_double = (0.d0,0.d0)
+        else
+           allocate(ASKI_spectra_local_single(9,ASKI_nf,ASKI_np_local))
+           ASKI_spectra_local_single = (0.0,0.0)
+        end if
+     case('GOERTZEL_STANDARD')
+        ! allocate for Goertzel's algorithm, first rank: 3 underived components, plus 6 strains = 9
+        if(ASKI_DFT_double) then
+           allocate(ASKI_Goertzel_U0_local_double(9,ASKI_nf,ASKI_np_local),&
+                ASKI_Goertzel_U1_local_double(9,ASKI_nf,ASKI_np_local),&
+                ASKI_Goertzel_U2_local_double(9,ASKI_nf,ASKI_np_local))
+           ASKI_Goertzel_U1_local_double = 0.d0
+           ASKI_Goertzel_U2_local_double = 0.d0
+        else
+           allocate(ASKI_Goertzel_U0_local_single(9,ASKI_nf,ASKI_np_local),&
+                ASKI_Goertzel_U1_local_single(9,ASKI_nf,ASKI_np_local),&
+                ASKI_Goertzel_U2_local_single(9,ASKI_nf,ASKI_np_local))
+           ASKI_Goertzel_U1_local_single = 0.0
+           ASKI_Goertzel_U2_local_single = 0.0
+        end if
+     end select
   end if ! ASKI_np_local .gt. 0
 
 end subroutine prepare_ASKI_output
@@ -1044,7 +1089,7 @@ end subroutine find_ASKI_neighbours_type_invgrid_4
 subroutine write_ASKI_output()
 
   use constants,only: CUSTOM_REAL,NGLLX,NGLLY,NGLLZ
-  use specfem_par,only: it,ibool, &
+  use specfem_par,only: it,it_begin,it_end,NSTEP,DT,TWO_PI,ibool, &
        xix,xiy,xiz,etax,etay,etaz,gammax,gammay,gammaz, &
        hprime_xx,hprime_yy,hprime_zz       
   use specfem_par_elastic,only: veloc,displ
@@ -1064,12 +1109,25 @@ subroutine write_ASKI_output()
        uydx,uydy,uydz, &
        uzdx,uzdy,uzdz, &
        e11,e22,e33,e23,e13,e12
-  complex(kind=kind(1.d0)) :: efactor_tapered
+  double precision :: taper_value,cos_phi,sin_phi
+  complex(kind=kind(1.d0)) :: efactor_tapered !variable is also used in case there is no tapering!
+  double precision, dimension(:,:,:), pointer :: ASKI_Goertzel_U_tmp_double
+  real, dimension(:,:,:), pointer :: ASKI_Goertzel_U_tmp_single
 
   if(.not.COMPUTE_ASKI_OUTPUT) return
 
+  ! it_begin = 1 and it_end = NSTEP are assumed in this subroutine, as well as for deconvolving the source time 
+  ! function below, so check this here (not sure wheter at all there would be SPECFEM standard functionality
+  ! which uses it_begin /= 1 or it_end /= NSTEP ?!)
+  if(it_begin /= 1 .or. it_end /= NSTEP) call exit_MPI_without_rank('for ASKI output it is assumed that shared '//&
+       'parameters it_begin == 1 and it_end == NSTEP (at least one is violated): someone messed around with the '//&
+       'time loop in subroutine iterate_time() or we are not running a forward simulation (?)')
+
   ! fourier transform to spectra only, if there are local wavefield points
   if(ASKI_np_local > 0) then
+
+     ! reduce array access by reading from array ASKI_DFT_taper_values only once before the following loop
+     if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) taper_value = ASKI_DFT_taper_values(it)
 
      do ip=1,ASKI_np_local
 
@@ -1196,47 +1254,544 @@ subroutine write_ASKI_output()
         ! conduct DFT
         if(ASKI_DFT_double) then
 
-           do jf = 1,ASKI_nf
-              ! reduce array access by reading from array efactors_tapered only once
-              efactor_tapered = ASKI_efactors_tapered(jf,it)
+           select case(ASKI_DFT_method)
 
-              ! underived wavefiled spectra
-              ASKI_spectra_local_double(1,jf,ip) = ASKI_spectra_local_double(1,jf,ip) + ux*efactor_tapered
-              ASKI_spectra_local_double(2,jf,ip) = ASKI_spectra_local_double(2,jf,ip) + uy*efactor_tapered
-              ASKI_spectra_local_double(3,jf,ip) = ASKI_spectra_local_double(3,jf,ip) + uz*efactor_tapered
+           case('EXPLICIT_SUMMATION')
+              do jf = 1,ASKI_nf
+                 ! reduce array access by reading from array efactors_tapered only once and taper, if necessary
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+                    efactor_tapered = ASKI_efactors(jf,it)*taper_value
+                 else
+                    efactor_tapered = ASKI_efactors(jf,it)
+                 end if
 
-              ! strain spectra in order e11,e22,e33,e23,e13,e12
-              ASKI_spectra_local_double(4,jf,ip) = ASKI_spectra_local_double(4,jf,ip) + e11*efactor_tapered
-              ASKI_spectra_local_double(5,jf,ip) = ASKI_spectra_local_double(5,jf,ip) + e22*efactor_tapered
-              ASKI_spectra_local_double(6,jf,ip) = ASKI_spectra_local_double(6,jf,ip) + e33*efactor_tapered
-              ASKI_spectra_local_double(7,jf,ip) = ASKI_spectra_local_double(7,jf,ip) + e23*efactor_tapered
-              ASKI_spectra_local_double(8,jf,ip) = ASKI_spectra_local_double(8,jf,ip) + e13*efactor_tapered
-              ASKI_spectra_local_double(9,jf,ip) = ASKI_spectra_local_double(9,jf,ip) + e12*efactor_tapered
-           end do ! jf
+                 ! underived wavefiled spectra
+                 ASKI_spectra_local_double(1,jf,ip) = ASKI_spectra_local_double(1,jf,ip) + ux*efactor_tapered
+                 ASKI_spectra_local_double(2,jf,ip) = ASKI_spectra_local_double(2,jf,ip) + uy*efactor_tapered
+                 ASKI_spectra_local_double(3,jf,ip) = ASKI_spectra_local_double(3,jf,ip) + uz*efactor_tapered
+
+                 ! strain spectra in order e11,e22,e33,e23,e13,e12
+                 ASKI_spectra_local_double(4,jf,ip) = ASKI_spectra_local_double(4,jf,ip) + e11*efactor_tapered
+                 ASKI_spectra_local_double(5,jf,ip) = ASKI_spectra_local_double(5,jf,ip) + e22*efactor_tapered
+                 ASKI_spectra_local_double(6,jf,ip) = ASKI_spectra_local_double(6,jf,ip) + e33*efactor_tapered
+                 ASKI_spectra_local_double(7,jf,ip) = ASKI_spectra_local_double(7,jf,ip) + e23*efactor_tapered
+                 ASKI_spectra_local_double(8,jf,ip) = ASKI_spectra_local_double(8,jf,ip) + e13*efactor_tapered
+                 ASKI_spectra_local_double(9,jf,ip) = ASKI_spectra_local_double(9,jf,ip) + e12*efactor_tapered
+              end do ! jf
+
+           case('GOERTZEL_STANDARD')
+
+              ! In Goertzel's algorithm, the very last time step is treated differently compared with the others
+              if(it < NSTEP) then
+
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+
+                    do jf = 1,ASKI_nf
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_double(1,jf,ip) = &
+                            ux*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(1,jf,ip)
+                       ASKI_Goertzel_U0_local_double(2,jf,ip) = &
+                            uy*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(2,jf,ip)
+                       ASKI_Goertzel_U0_local_double(3,jf,ip) = &
+                            uz*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(3,jf,ip)
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_double(4,jf,ip) = &
+                            e11*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(4,jf,ip)
+                       ASKI_Goertzel_U0_local_double(5,jf,ip) = &
+                            e22*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(5,jf,ip)
+                       ASKI_Goertzel_U0_local_double(6,jf,ip) = &
+                            e33*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(6,jf,ip)
+                       ASKI_Goertzel_U0_local_double(7,jf,ip) = &
+                            e23*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(7,jf,ip)
+                       ASKI_Goertzel_U0_local_double(8,jf,ip) = &
+                            e13*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(8,jf,ip)
+                       ASKI_Goertzel_U0_local_double(9,jf,ip) = &
+                            e12*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(9,jf,ip)
+                    end do ! jf
+
+                 else ! taper
+
+                    do jf = 1,ASKI_nf
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_double(1,jf,ip) = &
+                            ux + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(1,jf,ip)
+                       ASKI_Goertzel_U0_local_double(2,jf,ip) = &
+                            uy + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(2,jf,ip)
+                       ASKI_Goertzel_U0_local_double(3,jf,ip) = &
+                            uz + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(3,jf,ip)
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_double(4,jf,ip) = &
+                            e11 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(4,jf,ip)
+                       ASKI_Goertzel_U0_local_double(5,jf,ip) = &
+                            e22 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(5,jf,ip)
+                       ASKI_Goertzel_U0_local_double(6,jf,ip) = &
+                            e33 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(6,jf,ip)
+                       ASKI_Goertzel_U0_local_double(7,jf,ip) = &
+                            e23 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(7,jf,ip)
+                       ASKI_Goertzel_U0_local_double(8,jf,ip) = &
+                            e13 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(8,jf,ip)
+                       ASKI_Goertzel_U0_local_double(9,jf,ip) = &
+                            e12 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(9,jf,ip)
+                    end do ! jf
+
+                 end if ! taper
+
+              else ! it < NSTEP
+
+                 ! AT THE LAST TIME STEP OF GOERTZEL'S ALGORITHM:
+                 ! - COMPUTE THE REAL PART OF THE OUTPUT SPECTRA AND STORE TO U0 (rename below as U1)
+                 ! - COMPUTE THE IMAGINARY PART OF THE OUTPUT SPECTRA AND STORE TO U2
+
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+
+                    do jf = 1,ASKI_nf
+                       ! REAL PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_double(1,jf,ip) = DT * ( &
+                            ux*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(1,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(2,jf,ip) = DT * ( &
+                            uy*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(2,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(3,jf,ip) = DT * ( &
+                            uz*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_double(4,jf,ip) = DT * ( &
+                            e11*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(4,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(5,jf,ip) = DT * ( &
+                            e22*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(5,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(6,jf,ip) = DT * ( &
+                            e33*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(6,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(7,jf,ip) = DT * ( &
+                            e23*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(7,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(8,jf,ip) = DT * ( &
+                            e13*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(8,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(9,jf,ip) = DT * ( &
+                            e12*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(9,jf,ip) )
+
+                       ! IMAGINARY PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U2_local_double(1,jf,ip) = DT * ( &
+                            ux*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(2,jf,ip) = DT * ( &
+                            uy*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(3,jf,ip) = DT * ( &
+                            uz*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U2_local_double(4,jf,ip) = DT * ( &
+                            e11*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(5,jf,ip) = DT * ( &
+                            e22*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(6,jf,ip) = DT * ( &
+                            e33*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(7,jf,ip) = DT * ( &
+                            e23*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(8,jf,ip) = DT * ( &
+                            e13*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(9,jf,ip) = DT * ( &
+                            e12*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) )
+                    end do ! jf
+
+                 else ! taper
+
+                    do jf = 1,ASKI_nf
+                       ! REAL PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_double(1,jf,ip) = DT * ( &
+                            ux + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(1,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(2,jf,ip) = DT * ( &
+                            uy + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(2,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(3,jf,ip) = DT * ( &
+                            uz + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_double(4,jf,ip) = DT * ( &
+                            e11 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(4,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(5,jf,ip) = DT * ( &
+                            e22 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(5,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(6,jf,ip) = DT * ( &
+                            e33 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(6,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(7,jf,ip) = DT * ( &
+                            e23 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(7,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(8,jf,ip) = DT * ( &
+                            e13 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(8,jf,ip) )
+                       ASKI_Goertzel_U0_local_double(9,jf,ip) = DT * ( &
+                            e12 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_double(9,jf,ip) )
+
+                       ! IMAGINARY PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U2_local_double(1,jf,ip) = DT * ( &
+                            ux + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(1,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(2,jf,ip) = DT * ( &
+                            uy + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(2,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(3,jf,ip) = DT * ( &
+                            uz + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U2_local_double(4,jf,ip) = DT * ( &
+                            e11 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(4,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(5,jf,ip) = DT * ( &
+                            e22 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(5,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(6,jf,ip) = DT * ( &
+                            e33 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(6,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(7,jf,ip) = DT * ( &
+                            e23 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(7,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(8,jf,ip) = DT * ( &
+                            e13 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(8,jf,ip) )
+                       ASKI_Goertzel_U2_local_double(9,jf,ip) = DT * ( &
+                            e12 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_double(9,jf,ip) )
+                    end do ! jf
+
+                 end if ! taper
+
+              end if ! it < NSTEP
+
+           end select
 
         else ! ASKI_DFT_double
 
-           do jf = 1,ASKI_nf
-              ! reduce array access by reading from array efactors_tapered only once
-              efactor_tapered = ASKI_efactors_tapered(jf,it)
+           select case(ASKI_DFT_method)
 
-              ! underived wavefiled spectra
-              ASKI_spectra_local_single(1,jf,ip) = ASKI_spectra_local_single(1,jf,ip) + ux*efactor_tapered
-              ASKI_spectra_local_single(2,jf,ip) = ASKI_spectra_local_single(2,jf,ip) + uy*efactor_tapered
-              ASKI_spectra_local_single(3,jf,ip) = ASKI_spectra_local_single(3,jf,ip) + uz*efactor_tapered
+           case('EXPLICIT_SUMMATION')
+              do jf = 1,ASKI_nf
+                 ! reduce array access by reading from array efactors_tapered only once and taper, if necessary
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+                    efactor_tapered = ASKI_efactors(jf,it)*taper_value
+                 else
+                    efactor_tapered = ASKI_efactors(jf,it)
+                 end if
 
-              ! strain spectra in order e11,e22,e33,e23,e13,e12
-              ASKI_spectra_local_single(4,jf,ip) = ASKI_spectra_local_single(4,jf,ip) + e11*efactor_tapered
-              ASKI_spectra_local_single(5,jf,ip) = ASKI_spectra_local_single(5,jf,ip) + e22*efactor_tapered
-              ASKI_spectra_local_single(6,jf,ip) = ASKI_spectra_local_single(6,jf,ip) + e33*efactor_tapered
-              ASKI_spectra_local_single(7,jf,ip) = ASKI_spectra_local_single(7,jf,ip) + e23*efactor_tapered
-              ASKI_spectra_local_single(8,jf,ip) = ASKI_spectra_local_single(8,jf,ip) + e13*efactor_tapered
-              ASKI_spectra_local_single(9,jf,ip) = ASKI_spectra_local_single(9,jf,ip) + e12*efactor_tapered
-           end do ! jf
+                 ! underived wavefiled spectra
+                 ASKI_spectra_local_single(1,jf,ip) = ASKI_spectra_local_single(1,jf,ip) + ux*efactor_tapered
+                 ASKI_spectra_local_single(2,jf,ip) = ASKI_spectra_local_single(2,jf,ip) + uy*efactor_tapered
+                 ASKI_spectra_local_single(3,jf,ip) = ASKI_spectra_local_single(3,jf,ip) + uz*efactor_tapered
+
+                 ! strain spectra in order e11,e22,e33,e23,e13,e12
+                 ASKI_spectra_local_single(4,jf,ip) = ASKI_spectra_local_single(4,jf,ip) + e11*efactor_tapered
+                 ASKI_spectra_local_single(5,jf,ip) = ASKI_spectra_local_single(5,jf,ip) + e22*efactor_tapered
+                 ASKI_spectra_local_single(6,jf,ip) = ASKI_spectra_local_single(6,jf,ip) + e33*efactor_tapered
+                 ASKI_spectra_local_single(7,jf,ip) = ASKI_spectra_local_single(7,jf,ip) + e23*efactor_tapered
+                 ASKI_spectra_local_single(8,jf,ip) = ASKI_spectra_local_single(8,jf,ip) + e13*efactor_tapered
+                 ASKI_spectra_local_single(9,jf,ip) = ASKI_spectra_local_single(9,jf,ip) + e12*efactor_tapered
+              end do ! jf
+
+           case('GOERTZEL_STANDARD')
+
+              ! In Goertzel's algorithm, the very last time step is treated differently compared with the others
+              if(it < NSTEP) then
+
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+
+                    do jf = 1,ASKI_nf
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_single(1,jf,ip) = &
+                            ux*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(1,jf,ip)
+                       ASKI_Goertzel_U0_local_single(2,jf,ip) = &
+                            uy*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(2,jf,ip)
+                       ASKI_Goertzel_U0_local_single(3,jf,ip) = &
+                            uz*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(3,jf,ip)
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_single(4,jf,ip) = &
+                            e11*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(4,jf,ip)
+                       ASKI_Goertzel_U0_local_single(5,jf,ip) = &
+                            e22*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(5,jf,ip)
+                       ASKI_Goertzel_U0_local_single(6,jf,ip) = &
+                            e33*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(6,jf,ip)
+                       ASKI_Goertzel_U0_local_single(7,jf,ip) = &
+                            e23*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(7,jf,ip)
+                       ASKI_Goertzel_U0_local_single(8,jf,ip) = &
+                            e13*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(8,jf,ip)
+                       ASKI_Goertzel_U0_local_single(9,jf,ip) = &
+                            e12*taper_value + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(9,jf,ip)
+                    end do ! jf
+
+                 else ! taper
+
+                    do jf = 1,ASKI_nf
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_single(1,jf,ip) = &
+                            ux + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(1,jf,ip)
+                       ASKI_Goertzel_U0_local_single(2,jf,ip) = &
+                            uy + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(2,jf,ip)
+                       ASKI_Goertzel_U0_local_single(3,jf,ip) = &
+                            uz + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(3,jf,ip)
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_single(4,jf,ip) = &
+                            e11 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(4,jf,ip)
+                       ASKI_Goertzel_U0_local_single(5,jf,ip) = &
+                            e22 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(5,jf,ip)
+                       ASKI_Goertzel_U0_local_single(6,jf,ip) = &
+                            e33 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(6,jf,ip)
+                       ASKI_Goertzel_U0_local_single(7,jf,ip) = &
+                            e23 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(7,jf,ip)
+                       ASKI_Goertzel_U0_local_single(8,jf,ip) = &
+                            e13 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(8,jf,ip)
+                       ASKI_Goertzel_U0_local_single(9,jf,ip) = &
+                            e12 + ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(9,jf,ip)
+                    end do ! jf
+
+                 end if ! taper
+
+              else ! it < NSTEP
+
+                 ! AT THE LAST TIME STEP OF GOERTZEL'S ALGORITHM:
+                 ! - COMPUTE THE REAL PART OF THE OUTPUT SPECTRA AND STORE TO U0 (rename below as U1)
+                 ! - COMPUTE THE IMAGINARY PART OF THE OUTPUT SPECTRA AND STORE TO U2
+
+                 if(ASKI_DFT_apply_taper .and. it >= ASKI_DFT_ntaper_start) then
+
+                    do jf = 1,ASKI_nf
+                       ! REAL PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_single(1,jf,ip) = DT * ( &
+                            ux*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(1,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(2,jf,ip) = DT * ( &
+                            uy*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(2,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(3,jf,ip) = DT * ( &
+                            uz*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_single(4,jf,ip) = DT * ( &
+                            e11*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(4,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(5,jf,ip) = DT * ( &
+                            e22*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(5,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(6,jf,ip) = DT * ( &
+                            e33*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(6,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(7,jf,ip) = DT * ( &
+                            e23*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(7,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(8,jf,ip) = DT * ( &
+                            e13*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(8,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(9,jf,ip) = DT * ( &
+                            e12*taper_value + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(9,jf,ip) )
+
+                       ! IMAGINARY PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U2_local_single(1,jf,ip) = DT * ( &
+                            ux*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(2,jf,ip) = DT * ( &
+                            uy*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(3,jf,ip) = DT * ( &
+                            uz*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U2_local_single(4,jf,ip) = DT * ( &
+                            e11*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(5,jf,ip) = DT * ( &
+                            e22*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(6,jf,ip) = DT * ( &
+                            e33*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(7,jf,ip) = DT * ( &
+                            e23*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(8,jf,ip) = DT * ( &
+                            e13*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(9,jf,ip) = DT * ( &
+                            e12*taper_value + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) )
+                    end do ! jf
+
+                 else ! taper
+
+                    do jf = 1,ASKI_nf
+                       ! REAL PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U0_local_single(1,jf,ip) = DT * ( &
+                            ux + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(1,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(2,jf,ip) = DT * ( &
+                            uy + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(2,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(3,jf,ip) = DT * ( &
+                            uz + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U0_local_single(4,jf,ip) = DT * ( &
+                            e11 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(4,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(5,jf,ip) = DT * ( &
+                            e22 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(5,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(6,jf,ip) = DT * ( &
+                            e33 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(6,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(7,jf,ip) = DT * ( &
+                            e23 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(7,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(8,jf,ip) = DT * ( &
+                            e13 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(8,jf,ip) )
+                       ASKI_Goertzel_U0_local_single(9,jf,ip) = DT * ( &
+                            e12 + 0.5d0*ASKI_Goertzel_Wr(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) &
+                            - ASKI_Goertzel_U2_local_single(9,jf,ip) )
+
+                       ! IMAGINARY PART
+
+                       ! underived wavefiled spectra
+                       ASKI_Goertzel_U2_local_single(1,jf,ip) = DT * ( &
+                            ux + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(1,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(2,jf,ip) = DT * ( &
+                            uy + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(2,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(3,jf,ip) = DT * ( &
+                            uz + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(3,jf,ip) )
+
+                       ! strain spectra in order e11,e22,e33,e23,e13,e12
+                       ASKI_Goertzel_U2_local_single(4,jf,ip) = DT * ( &
+                            e11 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(4,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(5,jf,ip) = DT * ( &
+                            e22 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(5,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(6,jf,ip) = DT * ( &
+                            e33 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(6,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(7,jf,ip) = DT * ( &
+                            e23 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(7,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(8,jf,ip) = DT * ( &
+                            e13 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(8,jf,ip) )
+                       ASKI_Goertzel_U2_local_single(9,jf,ip) = DT * ( &
+                            e12 + ASKI_Goertzel_Wi(jf)*ASKI_Goertzel_U1_local_single(9,jf,ip) )
+                    end do ! jf
+
+                 end if ! taper
+
+              end if ! it < NSTEP
+
+           end select
 
         end if ! ASKI_DFT_double
 
      end do ! ip
+
+     select case(ASKI_DFT_method)
+     case('GOERTZEL_STANDARD')
+        if(ASKI_DFT_double) then
+           if(it < NSTEP) then
+              ! rename U2 = U1 and U1 = U0 by re-assigning the pointers of all three arrays accordingly
+              ASKI_Goertzel_U_tmp_double => ASKI_Goertzel_U2_local_double
+              ASKI_Goertzel_U2_local_double => ASKI_Goertzel_U1_local_double
+              ASKI_Goertzel_U1_local_double => ASKI_Goertzel_U0_local_double
+              ! use the memory of U2 (pointed to by U_tmp) for setting the values U0 in next time step
+              ASKI_Goertzel_U0_local_double => ASKI_Goertzel_U_tmp_double
+           else ! it < NSTEP
+              ! Correct for phase shift in time-reversed goertzel algorithm by multiplying the spectral values
+              ! by exp(-i*omega*(NSTEP-1)*DT) = cos(-omega*(NSTEP-1)*DT) + i*sin(-omega*(NSTEP-1)*DT)
+              ! Equivalently, modify real and imaginary part of the spectral value explicitely.
+              ! Moreover: for efficiency reasons, above the real part was stored to U0, but below it is assumed 
+              ! to be contained in U1. Hence, move real part values here to U1.
+              do jf = 1,ASKI_nf
+                 cos_phi = cos(-TWO_PI*ASKI_jf(jf)*ASKI_df*(NSTEP-1)*DT)
+                 sin_phi = sin(-TWO_PI*ASKI_jf(jf)*ASKI_df*(NSTEP-1)*DT)
+                 ! REAL PART
+                 ASKI_Goertzel_U1_local_double(:,jf,:) = &
+                      ASKI_Goertzel_U0_local_double(:,jf,:)*cos_phi - ASKI_Goertzel_U2_local_double(:,jf,:)*sin_phi
+                 ! IMAGINARY PART
+                 ASKI_Goertzel_U2_local_double(:,jf,:) = &
+                      ASKI_Goertzel_U2_local_double(:,jf,:)*cos_phi + ASKI_Goertzel_U0_local_double(:,jf,:)*sin_phi
+              end do ! jf
+              ! U0 is not needed anymore, so deallocate (as early as possible)
+              deallocate(ASKI_Goertzel_U0_local_double)
+              nullify(ASKI_Goertzel_U0_local_double)
+           end if ! it < NSTEP
+        else ! ASKI_DFT_double
+           if(it < NSTEP) then
+              ! rename U2 = U1 and U1 = U0 by re-assigning the pointers of all three arrays accordingly
+              ASKI_Goertzel_U_tmp_single => ASKI_Goertzel_U2_local_single
+              ASKI_Goertzel_U2_local_single => ASKI_Goertzel_U1_local_single
+              ASKI_Goertzel_U1_local_single => ASKI_Goertzel_U0_local_single
+              ! the third array (U0) is not needed anymore, so deallocate (as early as possible)
+              ASKI_Goertzel_U0_local_single => ASKI_Goertzel_U_tmp_single
+           else ! it < NSTEP
+              ! Correct for phase shift in time-reversed goertzel algorithm by multiplying the spectral values
+              ! by exp(-i*omega*(NSTEP-1)*DT) = cos(-omega*(NSTEP-1)*DT) + i*sin(-omega*(NSTEP-1)*DT)
+              ! Equivalently, modify real and imaginary part of the spectral value explicitely.
+              ! Moreover: for efficiency reasons, above the real part was stored to U0, but below it is assumed 
+              ! to be contained in U1. Hence, move real part values here to U1.
+              do jf = 1,ASKI_nf
+                 cos_phi = cos(-TWO_PI*ASKI_jf(jf)*ASKI_df*(NSTEP-1)*DT)
+                 sin_phi = sin(-TWO_PI*ASKI_jf(jf)*ASKI_df*(NSTEP-1)*DT)
+                 ! REAL PART
+                 ASKI_Goertzel_U1_local_single(:,jf,:) = &
+                      ASKI_Goertzel_U0_local_single(:,jf,:)*cos_phi - ASKI_Goertzel_U2_local_single(:,jf,:)*sin_phi
+                 ! IMAGINARY PART
+                 ASKI_Goertzel_U2_local_single(:,jf,:) = &
+                      ASKI_Goertzel_U2_local_single(:,jf,:)*cos_phi + ASKI_Goertzel_U0_local_single(:,jf,:)*sin_phi
+              end do ! jf
+              ! U0 is not needed anymore, so deallocate (as early as possible)
+              deallocate(ASKI_Goertzel_U0_local_single)
+              nullify(ASKI_Goertzel_U0_local_single)
+           end if ! it < NSTEP
+        end if ! ASKI_DFT_double
+     end select
 
   end if ! ASKI_np_local > 0
 
@@ -1258,9 +1813,19 @@ subroutine save_ASKI_output()
   ! deallocate everything, simulation is over
   if(allocated(ASKI_np_local_all)) deallocate(ASKI_np_local_all)
   if(allocated(ASKI_indx_local)) deallocate(ASKI_indx_local)
-  if(allocated(ASKI_efactors_tapered)) deallocate(ASKI_efactors_tapered)
+  if(allocated(ASKI_efactors)) deallocate(ASKI_efactors)
+  if(allocated(ASKI_Goertzel_Wr)) deallocate(ASKI_Goertzel_Wr)
+  if(allocated(ASKI_Goertzel_Wi)) deallocate(ASKI_Goertzel_Wi)
+  if(allocated(ASKI_DFT_taper_values)) deallocate(ASKI_DFT_taper_values)
+  if(allocated(ASKI_stf_spectrum_double)) deallocate(ASKI_stf_spectrum_double)
   if(allocated(ASKI_spectra_local_double)) deallocate(ASKI_spectra_local_double)
   if(allocated(ASKI_spectra_local_single)) deallocate(ASKI_spectra_local_single)
+  if(associated(ASKI_Goertzel_U0_local_double)) deallocate(ASKI_Goertzel_U0_local_double)
+  if(associated(ASKI_Goertzel_U1_local_double)) deallocate(ASKI_Goertzel_U1_local_double)
+  if(associated(ASKI_Goertzel_U2_local_double)) deallocate(ASKI_Goertzel_U2_local_double)
+  if(associated(ASKI_Goertzel_U0_local_single)) deallocate(ASKI_Goertzel_U0_local_single)
+  if(associated(ASKI_Goertzel_U1_local_single)) deallocate(ASKI_Goertzel_U1_local_single)
+  if(associated(ASKI_Goertzel_U2_local_single)) deallocate(ASKI_Goertzel_U2_local_single)
   if(allocated(ASKI_jf)) deallocate(ASKI_jf)
 end subroutine save_ASKI_output
 !
@@ -1268,15 +1833,17 @@ end subroutine save_ASKI_output
 !
 subroutine deconvolve_stf_from_ASKI_output()
   use constants,only: OUTPUT_FILES_BASE
-  use specfem_par,only: myrank,NSTEP,DT
+  use specfem_par,only: myrank,NSTEP,DT,TWO_PI
   use specfem_par_ASKI
   implicit none
   double precision, external :: comp_source_time_function
-  complex(kind=kind(1.d0)), dimension(:), allocatable :: stf_spectrum_double
   double precision, dimension(:), allocatable :: stf_deconv
+  double precision, dimension(:), pointer :: U0,U1,U2,U2_tmp
   double precision :: dummy_time,stf_value_left,stf_value_tmp
   integer :: jt,jf,IOASKI,ios
   character(len=41) :: filename_stf_deconv,filename_stf_spectrum_dconv
+
+  nullify(U0,U1,U2,U2_tmp)
 
   allocate(stf_deconv(NSTEP))
 
@@ -1322,14 +1889,42 @@ subroutine deconvolve_stf_from_ASKI_output()
 
   ! now transform stf_deconv to spectrum at the chosen discrete frequencies
 
-  allocate(stf_spectrum_double(ASKI_nf))
-!!$  stf_spectrum_double = (0.d0,0.d0)
-!!$  do jt = 1,NSTEP
-!!$     do jf = 1,ASKI_nf
-!!$        stf_spectrum_double(jf) = stf_spectrum_double(jf) + stf_deconv(jt)*ASKI_efactors_tapered(jf,jt)
-!!$     end do ! jf
-!!$  end do ! jt
-  stf_spectrum_double = matmul(ASKI_efactors_tapered,stf_deconv)
+  allocate(ASKI_stf_spectrum_double(ASKI_nf))
+  select case(ASKI_DFT_method)
+  case('EXPLICIT_SUMMATION')
+!!$     ASKI_stf_spectrum_double = (0.d0,0.d0)
+!!$     do jt = 1,NSTEP
+!!$        do jf = 1,ASKI_nf
+!!$           ASKI_stf_spectrum_double(jf) = ASKI_stf_spectrum_double(jf) + stf_deconv(jt)*ASKI_efactors(jf,jt)
+!!$        end do ! jf
+!!$     end do ! jt
+     ASKI_stf_spectrum_double = matmul(ASKI_efactors,stf_deconv)
+  case('GOERTZEL_STANDARD')
+     allocate(U0(ASKI_nf),U1(ASKI_nf),U2(ASKI_nf))
+     U1 = 0.d0
+     U2 = 0.d0
+     do jt = 1,NSTEP-1
+        do jf = 1,ASKI_nf
+           U0(jf) = stf_deconv(jt) + ASKI_Goertzel_Wr(jf)*U1(jf) - U2(jf)
+        end do ! jf
+        ! rename U2 = U1 and U1 = U0 by re-assigning the pointers of all three arrays accordingly
+        U2_tmp => U2
+        U2 => U1
+        U1 => U0
+        U0 => U2_tmp ! use the memory of U2 (pointed to by U2_tmp) for setting the values U0 in next time step
+     end do ! jt
+     ! In Goertzel's algorithm, the very last time step is treated differently compared with the others
+     do jf = 1,ASKI_nf
+        ASKI_stf_spectrum_double(jf) = cmplx( &
+             DT * ( stf_deconv(NSTEP)+0.5d0*ASKI_Goertzel_Wr(jf)*U1(jf)-U2(jf) ) , &
+             DT * ASKI_Goertzel_Wi(jf) * U1(jf) , kind=kind(1.d0) )
+        ! After treating the very last time step, correct for phase shift in time-reversed Goertzel algorithm
+        ! by multiplying the spectral values by exp(-i*omega*(NSTEP-1)*DT)
+        ASKI_stf_spectrum_double(jf) = ASKI_stf_spectrum_double(jf) * exp(-(0.d0,1.d0)*TWO_PI*ASKI_jf(jf)*ASKI_df*(NSTEP-1)*DT)
+     end do
+     nullify(U2_tmp)
+     deallocate(U0,U1,U2)
+  end select
 
   ! RANK 0 WRITES OUT LOGS CONTAINING THE (DIFFERENTIATED) STF AND THE SPECTRUM WHICH IS DECONVOLVED
   if(myrank==0) then
@@ -1371,34 +1966,21 @@ subroutine deconvolve_stf_from_ASKI_output()
         write(IOASKI,*) real(dble(jt-1)*DT),real(stf_deconv(jt))
      end do ! jt
      close(IOASKI)
+     deallocate(stf_deconv)
      call get_file_unit_ASKI(IOASKI)
      open(unit=IOASKI,file=trim(OUTPUT_FILES_BASE)//trim(filename_stf_spectrum_dconv),&
           form='formatted',status='unknown',action='write')
      do jf = 1,ASKI_nf
-        write(IOASKI,*) ASKI_jf(jf)*ASKI_df, stf_spectrum_double(jf), &
-             atan2(aimag(stf_spectrum_double(jf)),real(stf_spectrum_double(jf))), abs(stf_spectrum_double(jf))
+        write(IOASKI,*) ASKI_jf(jf)*ASKI_df, ASKI_stf_spectrum_double(jf), &
+             atan2(aimag(ASKI_stf_spectrum_double(jf)),real(ASKI_stf_spectrum_double(jf))), abs(ASKI_stf_spectrum_double(jf))
      end do ! jf
      close(IOASKI)
 
-     ! IF myrank==0 IS ONLY HERE TO WRITE THE DECONVOLVE LOG OUTPUT, BUT DOES NOT HAVE ANY ASKI OUTPUT, 
-     ! THEN IT SHOULD DEALLOCATE THE DECONVOLVE STUFF AND LEAVE THIS ROUTINE
-     if(ASKI_np_local <= 0) then
-        deallocate(stf_deconv,stf_spectrum_double)
-        return
-     end if
+     ! if myrank==0 is only here to write the deconvolve log output, but does not have any aski output, 
+     ! then it can deallocate the deconvolve-spectrum already here
+     if(ASKI_np_local <= 0) deallocate(ASKI_stf_spectrum_double)
   end if ! myrank == 0
 
-  if(ASKI_DFT_double) then
-     do jf = 1,ASKI_nf
-        ASKI_spectra_local_double(:,jf,:) = ASKI_spectra_local_double(:,jf,:) / stf_spectrum_double(jf)
-     end do ! jf
-  else ! ASKI_DFT_double
-     do jf = 1,ASKI_nf
-        ASKI_spectra_local_single(:,jf,:) = ASKI_spectra_local_single(:,jf,:) / stf_spectrum_double(jf)
-     end do ! jf
-  end if ! ASKI_DFT_double
-
-  deallocate(stf_deconv,stf_spectrum_double)
 end subroutine deconvolve_stf_from_ASKI_output
 !
 !-------------------------------------------------------------------------------------------
@@ -1411,7 +1993,7 @@ subroutine write_ASKI_output_files()
   implicit none
 
   integer :: jf,ip,iproc,IOASKI,specfem_version
-  complex, dimension(:,:), allocatable :: spectrum_one_frequency
+  complex, dimension(:,:), allocatable :: spectrum_one_frequency,spectrum_one_frequency_local
   character(len=509) :: filename
   logical :: file_exists
   character (len=7) :: open_status
@@ -1429,10 +2011,26 @@ subroutine write_ASKI_output_files()
         ! this is me, rank 0
         if(ASKI_np_local > 0) then
            if(ASKI_DFT_double) then
-              spectrum_one_frequency(1:ASKI_np_local,:) = transpose(ASKI_spectra_local_double(:,jf,:))
+              select case(ASKI_DFT_method)
+              case('EXPLICIT_SUMMATION')
+                 spectrum_one_frequency(1:ASKI_np_local,:) = transpose(ASKI_spectra_local_double(:,jf,:))
+              case('GOERTZEL_STANDARD')
+                 spectrum_one_frequency(1:ASKI_np_local,:) = cmplx( &
+                      transpose(ASKI_Goertzel_U1_local_double(:,jf,:)) , & ! real part
+                      transpose(ASKI_Goertzel_U2_local_double(:,jf,:)) )   ! imaginary part
+              end select
            else
-              spectrum_one_frequency(1:ASKI_np_local,:) = transpose(ASKI_spectra_local_single(:,jf,:))
+              select case(ASKI_DFT_method)
+              case('EXPLICIT_SUMMATION')
+                 spectrum_one_frequency(1:ASKI_np_local,:) = transpose(ASKI_spectra_local_single(:,jf,:))
+              case('GOERTZEL_STANDARD')
+                 spectrum_one_frequency(1:ASKI_np_local,:) = cmplx( &
+                      transpose(ASKI_Goertzel_U1_local_single(:,jf,:)) , & ! real part
+                      transpose(ASKI_Goertzel_U2_local_single(:,jf,:)) )   ! imaginary part
+              end select
            end if
+           if(ASKI_DECONVOLVE_STF) spectrum_one_frequency(1:ASKI_np_local,:) = &
+                spectrum_one_frequency(1:ASKI_np_local,:) / ASKI_stf_spectrum_double(jf)
            ip = ip + ASKI_np_local
         end if
         do iproc = 1,NPROC-1
@@ -1473,13 +2071,31 @@ subroutine write_ASKI_output_files()
   else ! myrank == 0
      
      if(ASKI_np_local > 0) then
+        allocate(spectrum_one_frequency_local(ASKI_np_local,9))
         do jf = 1,ASKI_nf
            if(ASKI_DFT_double) then
-              call send_c_t(transpose(cmplx(ASKI_spectra_local_double(:,jf,:))), ASKI_np_local*9, 0)
+              select case(ASKI_DFT_method)
+              case('EXPLICIT_SUMMATION')
+                 spectrum_one_frequency_local = transpose(cmplx(ASKI_spectra_local_double(:,jf,:)))
+              case('GOERTZEL_STANDARD')
+                 spectrum_one_frequency_local = cmplx( &
+                      transpose(ASKI_Goertzel_U1_local_double(:,jf,:)) , & ! real part
+                      transpose(ASKI_Goertzel_U2_local_double(:,jf,:)))    ! imaginary part
+              end select
            else
-              call send_c_t(transpose(ASKI_spectra_local_single(:,jf,:)), ASKI_np_local*9, 0)
+              select case(ASKI_DFT_method)
+              case('EXPLICIT_SUMMATION')
+                 spectrum_one_frequency_local = transpose(ASKI_spectra_local_single(:,jf,:))
+              case('GOERTZEL_STANDARD')
+                 spectrum_one_frequency_local = cmplx( &
+                      transpose(ASKI_Goertzel_U1_local_single(:,jf,:)) , & ! real part
+                      transpose(ASKI_Goertzel_U2_local_single(:,jf,:)))    ! imaginary part
+              end select
            end if
+           if(ASKI_DECONVOLVE_STF) spectrum_one_frequency_local = spectrum_one_frequency_local / ASKI_stf_spectrum_double(jf)
+           call send_c_t(spectrum_one_frequency_local, ASKI_np_local*9, 0)
         end do
+        deallocate(spectrum_one_frequency_local)
      end if
 
   end if ! myrank == 0
