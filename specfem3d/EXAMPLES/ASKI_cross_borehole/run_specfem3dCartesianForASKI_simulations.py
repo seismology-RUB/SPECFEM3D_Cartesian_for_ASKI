@@ -3,22 +3,22 @@
 #!/usr/bin/env /usr/bin/python
 #
 #----------------------------------------------------------------------------
-#   Copyright 2015 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
+#   Copyright 2016 Florian Schumacher (Ruhr-Universitaet Bochum, Germany)
 #
-#   This file is part of ASKI version 1.0.
+#   This file is part of ASKI version 1.2.
 #
-#   ASKI version 1.0 is free software: you can redistribute it and/or modify
+#   ASKI version 1.2 is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 2 of the License, or
 #   (at your option) any later version.
 #
-#   ASKI version 1.0 is distributed in the hope that it will be useful,
+#   ASKI version 1.2 is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License
-#   along with ASKI version 1.0.  If not, see <http://www.gnu.org/licenses/>.
+#   along with ASKI version 1.2.  If not, see <http://www.gnu.org/licenses/>.
 #----------------------------------------------------------------------------
 #
 # import python modules
@@ -187,11 +187,15 @@ class simulation:
             self.nproc = int(nproc_list[0])
 
         # open main parfile and check if all required keywords are present
+        if not os_path.exists(main_parfile):
+            self.log("### STOP : file '"+main_parfile+"' as set for the main parameter file does not exist, "+
+                     "please correct the definition of 'main_parfile = ...' at the beginning of this script\n\n")
+            raise Exception("main parameter file does not exist; see logfile '"+logfile+"'")
         try:
             self.mparam = inputParameter(main_parfile)
         except:
             self.log("### STOP : could not create inputParameter object for main parameter file '"+
-                     main_parfile+"'\n\n")
+                     main_parfile+"', make sure that the file is of correct form\n\n")
             raise
         # check if all required keys are set
         noKeys = self.mparam.keysNotPresent(['MAIN_PATH_INVERSION','CURRENT_ITERATION_STEP','ITERATION_STEP_PATH',
@@ -209,11 +213,17 @@ class simulation:
 
         # open iteration step parfile and check if all required keywords are present
         iter_parfile = os_path.join(self.iter_path,self.mparam.sval('PARFILE_ITERATION_STEP'))
+        if not os_path.exists(iter_parfile):
+            self.log("### STOP : the iteration step parameter file '"+iter_parfile+"' as derived from the main "+
+                     "parameter file does not exist, please make sure that the settings of MAIN_PATH_INVERSION, "+
+                     "CURRENT_ITERATION_STEP, ITERATION_STEP_PATH and PARFILE_ITERATION_STEP in main parameter file '"+
+                     main_parfile+"' is correctly set\n\n")
+            raise Exception("iteration step parameter file does not exist; see logfile '"+logfile+"'")
         try:
             self.iparam = inputParameter(iter_parfile)
         except:
             self.log("### STOP : could not create inputParameter object for the iteration step parameter file '"+
-                     iter_parfile+"'\n\n")
+                     iter_parfile+"', make sure that the file is of correct form\n\n")
             raise
         # check if all required keys are set
         noKeys = self.iparam.keysNotPresent(['ITERATION_STEP_NUMBER_OF_FREQ','ITERATION_STEP_INDEX_OF_FREQ',
@@ -333,10 +343,15 @@ class simulation:
 
         # read event list and station list
         if displ_simulations != '' or measured_data_simulations != '':
+            if not os_path.exists(self.mparam.sval('FILE_EVENT_LIST')):
+                self.log("### STOP : the event list file '"+self.mparam.sval('FILE_EVENT_LIST')+"' as set in the "+
+                         "main parameter file '"+main_parfile+"' does not exist\n\n")
+                raise Exception("event list file does not exist; see logfile '"+logfile+"'")
             try:
                 self.evlist = eventList(self.mparam.sval('FILE_EVENT_LIST'),list_type='standard')
             except:
-                self.log("### STOP : could not read event list from file '"+self.mparam.sval('FILE_EVENT_LIST')+"'\n\n")
+                self.log("### STOP : could not construct event list from file '"+self.mparam.sval('FILE_EVENT_LIST')+
+                         "', make sure that the file is of correct form\n\n")
                 raise
             if self.evlist.nev == 0:
                 self.log("### STOP : event list from file '"+self.mparam.sval('FILE_EVENT_LIST')+"' does not contain"+
@@ -347,10 +362,15 @@ class simulation:
                          self.evlist.csys+"', only 'C' supported here\n\n")
                 raise Exception("coordinate system of event list file not supported; see logfile '"+logfile+"'")
             if create_specfem_stations:
+                if not os_path.exists(self.mparam.sval('FILE_STATION_LIST')):
+                    self.log("### STOP : the station list file '"+self.mparam.sval('FILE_STATION_LIST')+"' as set "+
+                             "in the main parameter file '"+main_parfile+"' does not exist\n\n")
+                    raise Exception("station list file does not exist; see logfile '"+logfile+"'")
                 try:
                     self.statlist = stationList(self.mparam.sval('FILE_STATION_LIST'),list_type='standard')
                 except:
-                    self.log("### STOP : could not read station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"'\n\n")
+                    self.log("### STOP : could not construct station list from file '"+self.mparam.sval('FILE_STATION_LIST')+
+                             "', make sure that the file is of correct form\n\n")
                     raise
                 if self.statlist.nstat == 0:
                     self.log("### STOP : station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"' does not contain"+
@@ -361,10 +381,15 @@ class simulation:
                              self.statlist.csys+"', only 'C' supported here\n\n")
                     raise Exception("coordinate system of station list file not supported; see logfile '"+logfile+"'")
         if gt_simulations != '' and not hasattr(self,'statlist'):
+            if not os_path.exists(self.mparam.sval('FILE_STATION_LIST')):
+                self.log("### STOP : the station list file '"+self.mparam.sval('FILE_STATION_LIST')+"' as set "+
+                         "in the main parameter file '"+main_parfile+"' does not exist\n\n")
+                raise Exception("station list file does not exist; see logfile '"+logfile+"'")
             try:
                 self.statlist = stationList(self.mparam.sval('FILE_STATION_LIST'),list_type='standard')
             except:
-                self.log("### STOP : could not read station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"'\n\n")
+                self.log("### STOP : could not construct station list from file '"+self.mparam.sval('FILE_STATION_LIST')+
+                         "', make sure that the file is of correct form\n\n")
                 raise
             if self.statlist.nstat == 0:
                 self.log("### STOP : station list from file '"+self.mparam.sval('FILE_STATION_LIST')+"' does not contain"+
@@ -400,7 +425,8 @@ class simulation:
         else:
             log_SGE_info = ''
         self.log('################################################################################\n'+
-                 "Welcome to these automated SPECFEM3D_Cartesian simulations for ASKI\n"+log_SGE_info+"\n"+
+                 "Welcome to these automated SPECFEM3D_Cartesian simulations for ASKI\n"+
+                 log_SGE_info+"\n\n"+
                  "main ASKI parameter file: '"+main_parfile+"'\n"+
                  "iteration step %i\n"%self.mparam.ival('CURRENT_ITERATION_STEP')+
                  "iteration step specific parameter file: '"+iter_parfile+"'\n"+
@@ -433,7 +459,7 @@ class simulation:
 
         # info about ASKI output volume
         if define_ASKI_output_volume_by_inversion_grid and (displ_simulations != '' or gt_simulations!= '') :
-            self.log("for every simulation of type displ or gt, the ASKI output volume in Parfile_ASKI\n"+
+            self.log("for every simulation of type displ or gt, the ASKI output volume in Par_file_ASKI\n"+
                      "will be defined by the following values:\n"+
                      "  ASKI_type_inversion_grid = "+self.ASKI_type_inversion_grid+" (meaning '"+ASKI_type_inversion_grid_char+"')\n"+
                      "  ASKI_wx = "+self.ASKI_wx+"\n"+
@@ -836,6 +862,7 @@ class simulation:
             except:
                 self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting Par_file_ASKI\n")
                 raise
+
         ##########################
         # typ=='gt':
         ##########################
@@ -934,6 +961,7 @@ class simulation:
             except:
                 self.log("   ERROR! in setSpecfemCartParameters: exception raised while setting Par_file_ASKI\n")
                 raise
+
         ##########################
         # typ=='data':
         ##########################
@@ -1018,6 +1046,7 @@ class simulation:
             else:
                 self.log("      SPECFEM3D_Cartesian OUTPUT_FILES will be copied to '"+
                          self.outfile_base+'_OUTPUT_FILES'+"'.\n")
+
             try:
                 # in case of data-simulations, do not touch USE_RICKER_TIME_FUNCTION 
                 # (so, if set manually previously, you can use any source time function)
@@ -1156,7 +1185,21 @@ def setParfile(filename,keys_vals):
         key_line = line.split('=')[0].strip()
         val_line = line.split('=')[1].split('#')[0].strip()
         if key_line in keys:
-            line = line.replace(val_line,values[key_line])
+            # first of all, remove newline character from end of line and append it to modified line
+            line = line.strip('\n')
+            # replace old value by new value, but keep all whitespace and commentary of this line as was before
+            key_part = line.split('=')[0]
+            val_part = line.split('=')[1].split('#')[0]
+            # comment part ends on newline character
+            if '#' in line:
+                comment_part = '#'+line.split('=')[1].split('#')[1]+'\n'
+            else:
+                comment_part = '\n'
+            if val_line == '':
+                val_part = ' '+values[key_line]+' '
+            else:
+                val_part = val_part.replace(val_line,values[key_line])
+            line = key_part+'='+val_part+comment_part
             # remove key of this line from keys list, in order to check (in the end) if all keys were found in the file
             keys.remove(key_line)
         #
@@ -1177,7 +1220,14 @@ def setParfile(filename,keys_vals):
 #-----------------------------------------------------------
 #
 def setForcesolution(hdur=None,lat=None,lon=None,depth=None,factor_force=None,FE=None,FN=None,FUP=None):
-    # read lines of CMTSOLUTION file
+    def setForcesolution_replaceLine(line,key,newval):
+        line_split = line.split(key)
+        if line_split[1].strip() == '':
+            return line_split[0]+key+'   '+newval+'\n'
+        else:
+            return line_split[0]+key+(line_split[1].replace(line_split[1].strip(),newval))
+    #
+    # read lines of FORCESOLUTION file
     try:
         lines = open(os_path.join(IN_DATA_FILES_PATH,'FORCESOLUTION'),'r').readlines()
     except:
@@ -1185,22 +1235,22 @@ def setForcesolution(hdur=None,lat=None,lon=None,depth=None,factor_force=None,FE
                         "' to read")
     # now modify lines
     if hdur is not None:
-        lines[2] = lines[2].replace(lines[2].split('f0:')[1].strip(),hdur)
+        lines[2] = setForcesolution_replaceLine(lines[2],'f0:',hdur)
     if lat is not None:
-        lines[3] = lines[3].replace(lines[3].split('latorUTM:')[1].strip(),lat)
+        lines[3] = setForcesolution_replaceLine(lines[3],'latorUTM:',lat)
     if lon is not None:
-        lines[4] = lines[4].replace(lines[4].split('longorUTM:')[1].strip(),lon)
+        lines[4] = setForcesolution_replaceLine(lines[4],'longorUTM:',lon)
     if depth is not None:
-        lines[5] = lines[5].replace(lines[5].split('depth:')[1].strip(),depth)
+        lines[5] = setForcesolution_replaceLine(lines[5],'depth:',depth)
     if factor_force is not None:
-        lines[6] = lines[6].replace(lines[6].split('factor force source:')[1].strip(),factor_force)
+        lines[6] = setForcesolution_replaceLine(lines[6],'factor force source:',factor_force)
     if FE is not None:
-        lines[7] = lines[7].replace(lines[7].split('component dir vect source E:')[1].strip(),FE)
+        lines[7] = setForcesolution_replaceLine(lines[7],'component dir vect source E:',FE)
     if FN is not None:
-        lines[8] = lines[8].replace(lines[8].split('component dir vect source N:')[1].strip(),FN)
+        lines[8] = setForcesolution_replaceLine(lines[8],'component dir vect source N:',FN)
     if FUP is not None:
-        lines[9] = lines[9].replace(lines[9].split('component dir vect source Z_UP:')[1].strip(),FUP)
-    # write modified lines to new CMTSOLUTION file
+        lines[9] = setForcesolution_replaceLine(lines[9],'component dir vect source Z_UP:',FUP)
+    # write modified lines to new FORCESOLUTION file
     try:
         open(os_path.join(IN_DATA_FILES_PATH,'FORCESOLUTION'),'w').writelines(lines)
     except:
@@ -1210,6 +1260,13 @@ def setForcesolution(hdur=None,lat=None,lon=None,depth=None,factor_force=None,FE
 #-----------------------------------------------------------
 #
 def setCmtsolution(evname=None,hdur=None,lat=None,lon=None,depth=None,Mrr=None,Mtt=None,Mpp=None,Mrt=None,Mrp=None,Mtp=None):
+    def setCmtsolution_replaceLine(line,key,newval):
+        line_split = line.split(key)
+        if line_split[1].strip() == '':
+            return line_split[0]+key+'   '+newval+'\n'
+        else:
+            return line_split[0]+key+(line_split[1].replace(line_split[1].strip(),newval))
+    #
     # read lines of CMTSOLUTION file
     try:
         lines = open(os_path.join(IN_DATA_FILES_PATH,'CMTSOLUTION'),'r').readlines()
@@ -1218,27 +1275,27 @@ def setCmtsolution(evname=None,hdur=None,lat=None,lon=None,depth=None,Mrr=None,M
                         "' to read")
     # now modify lines
     if evname is not None:
-        lines[1] = lines[1].replace(lines[1].split('event name:')[1].strip(),evname)
+        lines[1] = setCmtsolution_replaceLine(lines[1],'event name:',evname)
     if hdur is not None:
-        lines[3] = lines[3].replace(lines[3].split('half duration:')[1].strip(),hdur)
+        lines[3] = setCmtsolution_replaceLine(lines[3],'half duration:',hdur)
     if lat is not None:
-        lines[4] = lines[4].replace(lines[4].split('latorUTM:')[1].strip(),lat)
+        lines[4] = setCmtsolution_replaceLine(lines[4],'latorUTM:',lat)
     if lon is not None:
-        lines[5] = lines[5].replace(lines[5].split('longorUTM:')[1].strip(),lon)
+        lines[5] = setCmtsolution_replaceLine(lines[5],'longorUTM:',lon)
     if depth is not None:
-        lines[6] = lines[6].replace(lines[6].split('depth:')[1].strip(),depth)
+        lines[6] = setCmtsolution_replaceLine(lines[6],'depth:',depth)
     if Mrr is not None:
-        lines[7] = lines[7].replace(lines[7].split('Mrr:')[1].strip(),Mrr)
+        lines[7] = setCmtsolution_replaceLine(lines[7],'Mrr:',Mrr)
     if Mtt is not None:
-        lines[8] = lines[8].replace(lines[8].split('Mtt:')[1].strip(),Mtt)
+        lines[8] = setCmtsolution_replaceLine(lines[8],'Mtt:',Mtt)
     if Mpp is not None:
-        lines[9] = lines[9].replace(lines[9].split('Mpp:')[1].strip(),Mpp)
+        lines[9] = setCmtsolution_replaceLine(lines[9],'Mpp:',Mpp)
     if Mrt is not None:
-        lines[10] = lines[10].replace(lines[10].split('Mrt:')[1].strip(),Mrt)
+        lines[10] = setCmtsolution_replaceLine(lines[10],'Mrt:',Mrt)
     if Mrp is not None:
-        lines[11] = lines[11].replace(lines[11].split('Mrp:')[1].strip(),Mrp)
+        lines[11] = setCmtsolution_replaceLine(lines[11],'Mrp:',Mrp)
     if Mtp is not None:
-        lines[12] = lines[12].replace(lines[12].split('Mtp:')[1].strip(),Mtp)
+        lines[12] = setCmtsolution_replaceLine(lines[12],'Mtp:',Mtp)
     # write modified lines to new CMTSOLUTION file
     try:
         open(os_path.join(IN_DATA_FILES_PATH,'CMTSOLUTION'),'w').writelines(lines)
@@ -1286,7 +1343,3 @@ def main():
 #
 if __name__ == "__main__":
     main()
-#
-#-----------------------------------------------------------
-# qsub -l low -cwd -hard -q "low.q@minos18" -masterq "low.q@minos18" -pe mpi-fu 16 run_specfem3dCartesianForASKI_simulations.py
-#-----------------------------------------------------------
