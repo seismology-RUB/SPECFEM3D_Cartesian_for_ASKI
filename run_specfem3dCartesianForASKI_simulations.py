@@ -278,7 +278,7 @@ class simulation:
                 check_dir = os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_DISPLACEMENTS'))
                 if not os_path.isdir(check_dir):
                     self.log("### STOP : as conventionally defined by the main and iter parameter files, "+
-                             +"the path for the kernel displacement output '"+check_dir+"' is not an existing directory\n\n")
+                             "the path for the kernel displacement output '"+check_dir+"' is not an existing directory\n\n")
                     raise Exception("path for kernel displacement output is no existing directory; see logfile '"+logfile+"'")
                 if not (os_access(check_dir,os_W_OK) and os_access(check_dir,os_X_OK)):
                     self.log("### STOP : you do not have write and execute permissions for the path for the kernel displacement output '"+
@@ -290,7 +290,7 @@ class simulation:
                 check_dir = os_path.join(self.iter_path,self.iparam.sval('PATH_KERNEL_GREEN_TENSORS'))
                 if not os_path.isdir(check_dir):
                     self.log("### STOP : as conventionally defined by the main and iter parameter files, "+
-                             +"the path for the kernel Green tensor output '"+check_dir+"' is not an existing directory\n\n")
+                             "the path for the kernel Green tensor output '"+check_dir+"' is not an existing directory\n\n")
                     raise Exception("path for kernel Green tensor output is no existing directory; see logfile '"+logfile+"'")
                 if not (os_access(check_dir,os_W_OK) and os_access(check_dir,os_X_OK)):
                     self.log("### STOP : you do not have write and execute permissions for the path for the kernel Green tensor output '"+
