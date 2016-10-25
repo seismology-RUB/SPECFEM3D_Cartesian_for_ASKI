@@ -100,9 +100,9 @@ send_emails = False
 email_receiver= 'receiver@mail.domain'
 email_sender = 'sender@mail.domain'
 # if send_emails = True, the script always writes an email after the 1st iteration and at the end of all iterations (or if script exits unintendedly)
-# number_of_emails_during_iteration defines the number of additional emails in between (1st and last iteration) while iterating over the simulations
-# set number_of_emails_during_iteration = 0 if you do not want to receive any additional emails aside from the two after 1st and last iteration
-number_of_emails = 0
+# number_of_intermediate_status_emails defines the number of additional emails in between (1st and last iteration) while iterating over the simulations
+# set number_of_intermediate_status_emails = 0 if you do not want to receive any additional emails aside from the two after 1st and last iteration
+number_of_intermediate_status_emails = 0
 #
 ####################################################################################################################
 ## define the (order of the) specfem3dForASKI simulations by strings displ_simulations,gt_simulations,measured_data_simulations
@@ -239,7 +239,7 @@ class simulation:
                          self.mparam.sval('PATH_MEASURED_DATA')+"' (as defined by the main parameter file)\n\n")
                 raise Exception("no write and execute permissions for PATH_MEASURED_DATA; see logfile '"+logfile+"'")
         else:
-            # check if the iteration step path, as defined by the main parfile, 
+            # check if the iteration step path, as defined by the main parfile, is an existing path and you have write and execute permissions
             # store iteration step path for further use
             self.iter_path = os_path.join(self.mparam.sval('MAIN_PATH_INVERSION'),self.mparam.sval('ITERATION_STEP_PATH')+
                                           '%3.3i/'%self.mparam.ival('CURRENT_ITERATION_STEP'))
@@ -476,9 +476,9 @@ class simulation:
                 raise Exception("could not write a Green tensor components file; see logfile '"+logfile+"'")
 
         self.index_simulation_send_email = [0]
-        if type(number_of_emails) is int:
-            self.index_simulation_send_email.extend([int( (i+1.)*max(float(len(self.all_tasks)-1)/float(number_of_emails+1),1.) )
-                                                    for i in range(min(number_of_emails,len(self.all_tasks)-2))])
+        if type(number_of_intermediate_status_emails) is int:
+            self.index_simulation_send_email.extend([int( (i+1.)*max(float(len(self.all_tasks)-1)/float(number_of_intermediate_status_emails+1),1.) )
+                                                    for i in range(min(number_of_intermediate_status_emails,len(self.all_tasks)-2))])
 
         # log initial information
         if runs_on_SGE:
@@ -497,7 +497,7 @@ class simulation:
                  log_SGE_info+"\n\n"+
                  "main ASKI parameter file: '"+main_parfile+"'\n"+
                  log_iter_info+
-                 "'./process.sh' tells me, we're using "+str(self.nproc)+" procs\n"+
+                 "'"+os_path.join(IN_DATA_FILES_PATH,'Par_file')+"' tells me, we're using "+str(self.nproc)+" procs\n"+
                  "OUTPUT_FILES_PATH = '"+OUTPUT_FILES_PATH+"'\n"+
                  "LOCAL_PATH = '"+LOCAL_PATH+"'\n"+
                  "IN_DATA_FILES_PATH = '"+IN_DATA_FILES_PATH+"'\n"+
