@@ -677,7 +677,7 @@
   write(IMAIN,*) 'number of nodes for each layer = ',mA1Db%nnodes
 
   if(minval(mA1Db%nnodes) .le. 1) &
-       call stop_error_model_ASKI('in read_external_model_layered_spline_gradients: number of nodes in a layer must be at least 2')
+       call stop_error_model_ASKI('in read_ASKI_external_background_model: number of nodes in a layer must be at least 2')
 
   write(IMAIN,*) 'the model values are:'
   write(IMAIN,*) 'depth [m]   density [Kg/m^3]   vp [m/s]   vs [m/s]   Qmu   Qkappa'
