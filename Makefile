@@ -90,7 +90,7 @@ transformSpecfem3dCartesianSyntheticData: %: %.o errorMessage.o seismicNetwork.o
 	seismicEventList.o inversionBasics.o discreteFourierTransform.o componentTransformation.o mathConstants.o \
 	seismicEvent.o argumentParser.o string.o realloc.o invgridVtkFile.o eventStationVtkFile.o kernelReferenceModel.o wavefieldPoints.o \
 	inversionGrid.o kernelInvertedModel.o wpVtkFile.o inputParameter.o integrationWeights.o flexibleType.o dateTime.o \
-	parameterCorrelation.o readEventStationFile.o modelParametrization.o geminiEarthModel.o \
+	parameterCorrelation.o readEventStationFile.o modelParametrization.o geminiKernelReferenceModel.o \
 	specfem3dKernelReferenceModel.o nexdKernelReferenceModel.o geminiWavefieldPoints.o specfem3dWavefieldPoints.o nexdWavefieldPoints.o ecartInversionGrid.o \
 	specfem3dInversionGrid.o scartInversionGrid.o schunkInversionGrid.o chunksInversionGrid.o vectorPointer.o primitiveTypeEncoding.o \
 	simpleString.o kindDefinitions.o timeUtils.o locatePoint.o streamAccess.o chunkCubedSphere.o externalRadialNodes.o \
